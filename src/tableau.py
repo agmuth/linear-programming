@@ -19,7 +19,7 @@ class Tableau():
         """
 
         self.m, self.n = A.shape
-        self.row_offset = chr.shape[0]
+        self.row_offset = c.shape[0]
         self.col_offset = 1
         self.cost_index = cost_index
 
@@ -99,7 +99,7 @@ class Tableau():
             theta (float): the amount to move in the direction of the column entering the basis
         """
 
-        present_in_basis_idx, = self._get_preset_in_basis_index()
+        present_in_basis_idx = self._get_preset_in_basis_index()
         basis_columns_idx = self._get_basis_ordering()
         tableau_reordering_idx = np.empty_like(basis_columns_idx)
         tableau_reordering_idx[basis_columns_idx] = np.arange(len(basis_columns_idx))
@@ -136,4 +136,5 @@ class Tableau():
             self.tableau[i] -= self.tableau[row_to_pivot_on] * self.tableau[i, col_to_pivot_on]  
 
     
-    
+    if __name__ == "__main__":
+        pass
