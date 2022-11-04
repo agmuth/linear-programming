@@ -1,5 +1,5 @@
 import numpy as np
-from linearprogramming.tableau import Tableau 
+from tableau import Tableau 
 
 
 def test_pivot_1():

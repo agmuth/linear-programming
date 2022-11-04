@@ -65,7 +65,7 @@ class Tableau():
             Tuple[int, float]: returns the index of the column to leave basis (indexing done relative to `A`) and the amount to move in the direction of the column entering the basis
         """
 
-        thetas = self.bfs / self.tableau[self.row_offset:, self.col_offset+col_to_enter_basis][self.basis - self.basis.min()]
+        thetas = self.bfs / self.tableau[self.row_offset:, self.col_offset+col_to_enter_basis]#[self.basis - self.basis.min()]
         thetas[self.tableau[self.row_offset:, self.col_offset+col_to_enter_basis] < 0] = np.inf
         thetas[np.isnan(thetas)] = np.inf
         theta = np.min(thetas)    
@@ -83,8 +83,9 @@ class Tableau():
             theta (float): the amount to move in the direction of the column entering the basis
         """
 
-        basis_swap_idx = np.where(self.bfs == col_to_enter_basis)[0][0]
-        self.bfs -= theta * self.tableau[self.row_offset:, self.col_offset+col_to_enter_basis][self.basis - self.basis.min()]
+        # basis_swap_idx = np.where(self.bfs == col_to_enter_basis)[0][0]
+        basis_swap_idx = np.where(self.basis == col_to_leave_basis)[0][0]
+        self.bfs -= theta * self.tableau[self.row_offset:, self.col_offset+col_to_enter_basis]#[self.basis - self.basis.min()]
         self.bfs[basis_swap_idx] = theta  # new variable enters at level `theta`
         self.basis[basis_swap_idx] = col_to_enter_basis  # update basis
 
