@@ -6,4 +6,4 @@ requires = ["setuptools", "wheel"]  # PEP 508 specifications.
 addopts = [
     "--import-mode=importlib",
 ]
-pythonpath = "src"
+pythonpath = "src/linearprogramming"
