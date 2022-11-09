@@ -56,7 +56,6 @@ class NaiveSimplexSolver():
             self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
             inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
 
-        return self.bfs
 
 
 class RevisedSimplexSolver(NaiveSimplexSolver):
@@ -96,11 +95,24 @@ class RevisedSimplexSolver(NaiveSimplexSolver):
                 inv_basis_matrix[i, :] -= search_direction[i] * inv_basis_matrix[col_in_basis_to_leave_basis, :] 
             inv_basis_matrix = inv_basis_matrix[:, :-1]
 
-        return self.bfs
 
 
 class TableauSimplexSolver(NaiveSimplexSolver):
-    def solve(self, maxiters: int=100):
+    """
+        Tableau implementation Simplex algorithm that implements Bland's selection rule to avoid cycling. 
+    """
+    def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array) -> None:
+        """
+        Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
+
+        Args:
+            c (np.array): 1, n vector cost vector. 
+            A (np.array): m by n matrix defining the linear combinations to be subject to equality constraints.
+            b (np.array): m by 1 vector defining the equalies constraints.
+            basis (np.array): array of length m mapping the columns of A to their indicies in the bfs 
+        """
+
+        super().__init__(c, A, b, basis)
         inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
         self.bfs = inv_basis_matrix @ self.b  # basic feasible soln
 
@@ -114,34 +126,48 @@ class TableauSimplexSolver(NaiveSimplexSolver):
         self.tableau[1:, 0] = inv_basis_matrix @ self.b
         self.tableau[1:, 1:] = inv_basis_matrix @ self.A
 
-        for _ in range(maxiters):
-            reduced_costs = self.tableau[0, 1:]
 
-            if reduced_costs.min() >= 0:
+    def get_col_in_tableau_to_enter_basis(self):
+        return np.argmin(self.tableau[0, 1:]) + 1  # bland's rule
+
+
+    def get_col_in_basis_to_leave_basis_and_theta_star(self, col_in_tableau_to_enter_basis: int):
+        search_direction = self.tableau[1:, col_in_tableau_to_enter_basis]
+        thetas = safe_div0(self.bfs, search_direction)
+        thetas[search_direction <= 0] = np.inf
+        col_in_basis_to_leave_basis = np.argmin(thetas)  # bland's rule
+        theta_star = thetas[col_in_basis_to_leave_basis]
+        return col_in_basis_to_leave_basis, theta_star
+
+
+    def update_bfs_and_basis(self, col_in_basis_to_leave_basis: int, col_in_tableau_to_enter_basis: int, theta_star: float):
+        self.bfs -= theta_star * self.tableau[1:, col_in_tableau_to_enter_basis] 
+        self.bfs[col_in_basis_to_leave_basis] = theta_star
+        self.basis[col_in_basis_to_leave_basis] = col_in_tableau_to_enter_basis - 1
+
+
+    def pivot_tableau(self, col_in_basis_to_leave_basis: int, col_in_tableau_to_enter_basis: int):
+        self.tableau[col_in_basis_to_leave_basis+1, :] /= self.tableau[1:, col_in_tableau_to_enter_basis][col_in_basis_to_leave_basis] 
+        for i in range(self.m+1):
+            if i == col_in_basis_to_leave_basis+1:
+                continue
+            self.tableau[i, :] -= self.tableau[i, col_in_tableau_to_enter_basis] * self.tableau[col_in_basis_to_leave_basis, :]
+
+
+    def solve(self, maxiters: int=100):
+        for _ in range(maxiters):
+            if self.tableau[0, 1:].min() >= 0:  # 0^th row is reduced costs
                 # optimal solution found break
                 break
+            
+            col_in_tableau_to_enter_basis = self.get_col_in_tableau_to_enter_basis()
 
-            col_in_A_to_enter_basis = np.argmin(reduced_costs)
-            search_direction = self.tableau[1:, col_in_A_to_enter_basis+1] 
-
-            if search_direction.max() <= 0:
+            if self.tableau[1:, col_in_tableau_to_enter_basis].max() <= 0:  # check to make sure search direction has at least one positive entry
                 # optimal cost is -inf -> problem is unbounded
                 raise ValueError("reduced cost vector has all non-positive entries. problem is unbounded.")
 
-            thetas = safe_div0(self.bfs, search_direction)
-            thetas[search_direction <= 0] = np.inf
-            col_in_basis_to_leave_basis = np.argmin(thetas)
-            theta_star = thetas[col_in_basis_to_leave_basis]
-            self.bfs -= theta_star * search_direction
-            self.bfs[col_in_basis_to_leave_basis] = theta_star
-            self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
+            col_in_basis_to_leave_basis, theta_star = self.get_col_in_basis_to_leave_basis_and_theta_star(col_in_tableau_to_enter_basis)
+            self.update_bfs_and_basis(col_in_basis_to_leave_basis, col_in_tableau_to_enter_basis, theta_star)
+            self.pivot_tableau(col_in_basis_to_leave_basis, col_in_tableau_to_enter_basis)
 
-            # update tableau
-            self.tableau[col_in_basis_to_leave_basis+1, :] /= search_direction[col_in_basis_to_leave_basis]
-            for i in range(self.m+1):
-                if i == col_in_basis_to_leave_basis+1:
-                    continue
-                self.tableau[i, :] -= self.tableau[i, col_in_A_to_enter_basis] * self.tableau[col_in_basis_to_leave_basis, :] 
-
-        return self.bfs
 
