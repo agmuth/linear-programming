@@ -22,3 +22,9 @@ class TestProblem1():
         solver.solve()
         assert np.linalg.norm(solver.bfs - self.optimal_bfs, 2) < self.tol and np.array_equal(solver.basis, self.optimal_basis)
 
+    
+    def test_revised_simplex_solver(self):
+        solver = RevisedSimplexSolver(self.c, self.A, self.b, self.starting_basis)
+        solver.solve()
+        assert np.linalg.norm(solver.bfs - self.optimal_bfs, 2) < self.tol and np.array_equal(solver.basis, self.optimal_basis)
+
