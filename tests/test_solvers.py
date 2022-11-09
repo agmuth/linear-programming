@@ -28,3 +28,9 @@ class TestProblem1():
         solver.solve()
         assert np.linalg.norm(solver.bfs - self.optimal_bfs, 2) < self.tol and np.array_equal(solver.basis, self.optimal_basis)
 
+
+    def test_tableau_simplex_solver(self):
+        solver = TableauSimplexSolver(self.c, self.A, self.b, self.starting_basis)
+        solver.solve()
+        assert np.linalg.norm(solver.bfs - self.optimal_bfs, 2) < self.tol and np.array_equal(solver.basis, self.optimal_basis)
+

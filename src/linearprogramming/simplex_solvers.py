@@ -29,8 +29,8 @@ class NaiveSimplexSolver():
     
         
     def solve(self, maxiters: int=100):
-        self.bfs = np.linalg.inv(self.A[:, self.basis]) @ self.b  # basic feasible soln
         inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
+        self.bfs = inv_basis_matrix @ self.b  # basic feasible soln
 
         for _ in range(maxiters):
             
@@ -41,7 +41,7 @@ class NaiveSimplexSolver():
                 break
 
             col_in_A_to_enter_basis = np.argmin(reduced_costs)
-            search_direction = inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis] # need to find better name
+            search_direction = inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis] 
 
             if search_direction.max() <= 0:
                 # optimal cost is -inf -> problem is unbounded
@@ -61,8 +61,8 @@ class NaiveSimplexSolver():
 
 class RevisedSimplexSolver(NaiveSimplexSolver):
     def solve(self, maxiters: int=100):
-        self.bfs = np.linalg.inv(self.A[:, self.basis]) @ self.b  # basic feasible soln
         inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
+        self.bfs = inv_basis_matrix @ self.b  # basic feasible soln
 
         for _ in range(maxiters):
             
@@ -73,7 +73,7 @@ class RevisedSimplexSolver(NaiveSimplexSolver):
                 break
 
             col_in_A_to_enter_basis = np.argmin(reduced_costs)
-            search_direction = inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis] # need to find better name
+            search_direction = inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis] 
 
             if search_direction.max() <= 0:
                 # optimal cost is -inf -> problem is unbounded
@@ -98,4 +98,50 @@ class RevisedSimplexSolver(NaiveSimplexSolver):
 
         return self.bfs
 
+
+class TableauSimplexSolver(NaiveSimplexSolver):
+    def solve(self, maxiters: int=100):
+        inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
+        self.bfs = inv_basis_matrix @ self.b  # basic feasible soln
+
+        self.tableau = np.zeros((self.m+1, self.n+1))
+        self.tableau[0, :] = np.hstack(
+            [
+                -1 * self.c[self.basis] @ self.bfs.T, 
+                self.c - self.c[self.basis] @ inv_basis_matrix @ self.A
+            ]
+        )
+        self.tableau[1:, 0] = inv_basis_matrix @ self.b
+        self.tableau[1:, 1:] = inv_basis_matrix @ self.A
+
+        for _ in range(maxiters):
+            reduced_costs = self.tableau[0, 1:]
+
+            if reduced_costs.min() >= 0:
+                # optimal solution found break
+                break
+
+            col_in_A_to_enter_basis = np.argmin(reduced_costs)
+            search_direction = self.tableau[1:, col_in_A_to_enter_basis+1] 
+
+            if search_direction.max() <= 0:
+                # optimal cost is -inf -> problem is unbounded
+                raise ValueError("reduced cost vector has all non-positive entries. problem is unbounded.")
+
+            thetas = safe_div0(self.bfs, search_direction)
+            thetas[search_direction <= 0] = np.inf
+            col_in_basis_to_leave_basis = np.argmin(thetas)
+            theta_star = thetas[col_in_basis_to_leave_basis]
+            self.bfs -= theta_star * search_direction
+            self.bfs[col_in_basis_to_leave_basis] = theta_star
+            self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
+
+            # update tableau
+            self.tableau[col_in_basis_to_leave_basis+1, :] /= search_direction[col_in_basis_to_leave_basis]
+            for i in range(self.m+1):
+                if i == col_in_basis_to_leave_basis+1:
+                    continue
+                self.tableau[i, :] -= self.tableau[i, col_in_A_to_enter_basis] * self.tableau[col_in_basis_to_leave_basis, :] 
+
+        return self.bfs
 
