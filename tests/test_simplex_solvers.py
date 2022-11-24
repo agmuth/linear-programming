@@ -142,12 +142,45 @@ phase_one_problem2 = StandardFormLPPhaseOneProblem(
     starting_basis_to_original_problem = np.array([0, 1, 2])
 )
 
+dual_solver_problem1 = StandardFormLPBaseSolverProblem(
+   # Introduction to Linear Programming Bertimas pg. 162
+   c = np.array([1, 1, 0, 0]),
+   A = np.array(
+       [
+           [1, 2, -1, 0],
+           [1, 0, 0, -1],
+       ]
+   ),
+   b = np.array([2, 1]),
+   starting_basis = np.array([2, 3]),
+   optimal_bfs = np.array([0.5, 1. ]),
+   optimal_basis = np.array([1, 0])
+)
+
+dual_solver_problem2 = StandardFormLPBaseSolverProblem(
+   # Linear and Nonlinear Programming LuenBerger pg. 93
+   c = np.array([3, 4, 5, 0, 0]),
+   A = np.array(
+       [
+           [-1, -2, -3, 1, 0],
+           [-2, -2, -1, 0, 1],
+       ]
+   ),
+   b = np.array([-5, -6]),
+   starting_basis = np.array([3, 4]),
+   optimal_bfs = np.array([1., 2.]),
+   optimal_basis = np.array([0, 1])
+
+)
+
 # -------------------------------------------------------------------
-base_solver_problems = [v for k, v in globals().items() if "base_solver_problem" in k]
+dual_solver_problems = [v for k, v in globals().items() if "dual_solver_problem" in k]
 base_solver_blands_sequence_problems = [v for k, v in globals().items() if "base_solver_blands_sequence_problem" in k]
 phase_one_problems = [v for k, v in globals().items() if "phase_one_problem" in k]
+base_solver_problems = [v for k, v in globals().items() if "base_solver_problem" in k]
 
 base_solvers = [RevisedSimplexSolver, TableauSimplexSolver]
+dual_solvers = [DualSimplexSolver]
 
 @pytest.mark.parametrize("problem", base_solver_problems)
 @pytest.mark.parametrize("solver", base_solvers)
@@ -176,4 +209,10 @@ def test_phase_one_of_two_phase_solvers(problem: StandardFormLPPhaseOneProblem):
     solver.drive_artificial_variables_out_of_basis()
     starting_basis = solver.artificial_tableau.basis
     assert np.array_equal(starting_basis, problem.starting_basis_to_original_problem)
-    
+
+@pytest.mark.parametrize("problem", dual_solver_problems)
+@pytest.mark.parametrize("solver", dual_solvers)
+def test_dual_simplex_solver_for_correct_soln(problem: StandardFormLPBaseSolverProblem, solver):
+    solver = solver(problem.c, problem.A, problem.b, problem.starting_basis)
+    solver.solve()
+    assert np.linalg.norm(solver.bfs - problem.optimal_bfs, 2) < TOL and np.array_equal(solver.basis, problem.optimal_basis)

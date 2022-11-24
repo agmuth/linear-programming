@@ -224,8 +224,59 @@ class TwoPhaseSimplexSolver():
         self.bfs = self.tableau.bfs
 
 
+
+class DualSimplexSolver():
+    """
+        Tableau based Simplex algorithm.  
+    """
+    def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array) -> None:
+        """
+        Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
+
+        Args:
+            c (np.array): 1, n vector cost vector. 
+            A (np.array): m by n matrix defining the linear combinations to be subject to equality constraints.
+            b (np.array): m by 1 vector defining the equalies constraints.
+            basis (np.array): array of length m mapping the columns of A to their indicies in the bfs 
+        """
+        self.tableau = Tableau(c, A, b, basis)
+    
+    def solve(self, maxiters=100):
+        for _ in range(maxiters):
+            self.tableau.tableau[0, 1:][self.tableau.basis] = 0  # avoid numerical errors
+            if self.tableau.tableau[1:, 0].min() >= 0:  # check for termination condition
+                break
+
+            pivot_row = np.argmax(self.tableau.tableau[1:, 0] < 0) + 1
+
+            if self.tableau.tableau[pivot_row, 1:].min() >= 0:
+                raise ValueError("`pivot_row` entries are all non negative. problem is unbounded.")
+
+
+            self.tableau.tableau[pivot_row, 1:] < 0
+
+            pivot_col = np.argmin(
+                [
+                    r if v < 0 else np.inf for v, r in zip(
+                        self.tableau.tableau[pivot_row, 1:],
+                        safe_div0(
+                            self.tableau.tableau[0, 1:], 
+                            np.abs(self.tableau.tableau[pivot_row, 1:])
+                        )
+                    )
+                    
+                ]
+        
+            ) \
+            + 1  # bland's rule
+
+            self.tableau.pivot(pivot_row, pivot_col)
+
+        self.basis = self.tableau.basis
+        self.bfs = self.tableau.tableau[1:, 0]
+
+
        
 
 if __name__ == "__main__":
     pass
-  
