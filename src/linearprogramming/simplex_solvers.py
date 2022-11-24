@@ -157,6 +157,7 @@ class TableauSimplexSolver():
         self.bfs = self.tableau.tableau[1:, 0]
 
 
+
 class TwoPhaseSimplexSolver():
     """
         Two Phase Simplex algorithm that implements Bland's selection rule to avoid cycling. 
@@ -170,14 +171,15 @@ class TwoPhaseSimplexSolver():
             A (np.array): m by n matrix defining the linear combinations to be subject to equality constraints.
             b (np.array): m by 1 vector defining the equalies constraints.
         """
-        self.c, self.A, self.b = c, A, b
+        self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
         self.m, self.n = A.shape
         self.row_offset = 1
         self.col_offset = 1
+        self.artificial_tableau = None
+        self.tableau = None
 
 
-    def solve(self, maxiters=100):
-
+    def drive_artificial_variables_out_of_basis(self, maxiters=100):
         # PHASE I --------------------------------------
         self.artificial_tableau = TableauSimplexSolver(
             c = np.hstack([np.zeros(self.n), np.ones(self.m)]),
@@ -187,6 +189,8 @@ class TwoPhaseSimplexSolver():
         )
 
         self.artificial_tableau.solve(maxiters)
+        if self.artificial_tableau.tableau.tableau[0, 0] < 0:
+            raise ValueError("Problem does not have any feasible solutions.")
 
         # drive any remaining aritificial variables out of basis
         for i in range(self.m+self.n-1, self.n, -1):
@@ -203,6 +207,10 @@ class TwoPhaseSimplexSolver():
                     pivot_col = np.argmax(self.artificial_tableau.tableau.tableau[index_in_basis+1, 1:self.n] > 0) + 1
                     self.artificial_tableau.tableau.pivot(i, pivot_col)
 
+    
+    
+    def solve(self, maxiters=100):
+        self.drive_artificial_variables_out_of_basis(maxiters)
         # PHASE II --------------------------------------
         self.tableau = TableauSimplexSolver(
             c = self.c,
@@ -219,31 +227,5 @@ class TwoPhaseSimplexSolver():
        
 
 if __name__ == "__main__":
-    c = np.array([1, 1, 1, 0, 0, 0, 0, 0])
-    A = np.array(
-        [
-            [1, 0, 0, 3, 2, 1, 0, 0],
-            [0, 1, 0, 5, 1, 1, 1, 0], 
-            [0, 0, 1, 2, 5, 1, 0, 1]
-        ]
-    )
-    b = np.array([1, 3, 4])
-    basis_seq = np.array(
-        [
-           [0, 1, 2],  # starting
-           [3, 1, 2],
-           [4, 1, 2],
-           [4, 6, 2], 
-           [4, 6, 7],
-        ]
-    )
-
-    solver = TableauSimplexSolver(c, A, b, basis_seq[0])
-    # solver = TwoPhaseSimplexSolver(c, A, b)
-    res = []
-    for _, basis in enumerate(basis_seq[1:]):
-        solver.solve(maxiters=1)
-        res.append(np.array_equal(basis, solver.basis))
-    solver.solve(maxiters=1) # check to make sure algorithm has terminated
-    res.append(np.array_equal(basis_seq[-1], solver.basis))
-    print(res)
+    pass
+  

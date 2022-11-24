@@ -15,6 +15,7 @@ class StandardFormLPBaseSolverProblem():
 
 
 base_solver_problem1 = StandardFormLPBaseSolverProblem(
+    # Combinatorial Optimization - Algorithms and Complexity Papadimitriou pg. 57
     c = np.array([1, 1, 1, 0, 0, 0, 0, 0]),
     A = np.array(
         [
@@ -76,8 +77,6 @@ base_solver_problem4 = StandardFormLPBaseSolverProblem(
     optimal_basis = np.array([0, 4, 2])
 )
 
-
-
 class StandardFormLPBaseSolverBlandsSequence():
     def __init__(self, c, A, b, basis_seq):
         self.c, self.A, self.b = c, A, b
@@ -104,9 +103,49 @@ base_solver_blands_sequence_problem1 = StandardFormLPBaseSolverBlandsSequence(
     ),
 )
 
+
+class StandardFormLPPhaseOneProblem():
+    def __init__(self, c, A, b, starting_bfs_to_original_problem, starting_basis_to_original_problem):
+        self.c, self.A, self.b = c, A, b
+        self.starting_bfs_to_original_problem = starting_bfs_to_original_problem
+        self.starting_basis_to_original_problem = starting_basis_to_original_problem
+
+
+phase_one_problem1 = StandardFormLPPhaseOneProblem(
+    # Combinatorial Optimization - Algorithms and Complexity Papadimitriou pg. 57
+    c = np.array([1, 1, 1, 1, 1]),
+    A = np.array(
+        [
+            [3, 2, 1, 0, 0],
+            [5, 1, 1, 1, 0],
+            [2, 5, 1, 0, 1],
+        ]
+    ),
+    b = np.array([1, 3, 4]),
+    starting_bfs_to_original_problem = np.array([1/2, 5/2, 3/2]),
+    starting_basis_to_original_problem = np.array([1, 3, 4])
+)
+
+phase_one_problem2 = StandardFormLPPhaseOneProblem(
+    # Introduction to linear Optimization Bertimas pg. 114
+    c = np.array([1, 1, 1, 0]),
+    A = np.array(
+        [
+            [1, 2, 3, 0],
+            [-1, 2, 6, 0],
+            [0, 4, 9, 0],
+            [0, 0, 3, 1],
+        ]
+    ),
+    b = np.array([3, 2, 5, 1]),
+    starting_bfs_to_original_problem = np.array([1, 1/2, 1/3]),
+    starting_basis_to_original_problem = np.array([0, 1, 2])
+)
+
 # -------------------------------------------------------------------
 base_solver_problems = [v for k, v in globals().items() if "base_solver_problem" in k]
 base_solver_blands_sequence_problems = [v for k, v in globals().items() if "base_solver_blands_sequence_problem" in k]
+phase_one_problems = [v for k, v in globals().items() if "phase_one_problem" in k]
 
 base_solvers = [RevisedSimplexSolver, TableauSimplexSolver]
 
@@ -120,7 +159,7 @@ def test_base_simplex_solver_for_correct_soln(problem: StandardFormLPBaseSolverP
 
 @pytest.mark.parametrize("problem", base_solver_blands_sequence_problems)
 @pytest.mark.parametrize("solver", base_solvers)
-def test_base_simplex_solver_for_blandss_seq(problem: StandardFormLPBaseSolverBlandsSequence, solver):
+def test_base_simplex_solver_for_blands_seq(problem: StandardFormLPBaseSolverBlandsSequence, solver):
     solver = solver(problem.c, problem.A, problem.b, problem.basis_seq[0])
     res = []
     for _, basis in enumerate(problem.basis_seq[1:]):
@@ -129,3 +168,12 @@ def test_base_simplex_solver_for_blandss_seq(problem: StandardFormLPBaseSolverBl
     solver.solve(maxiters=1) # check to make sure algorithm has terminated
     res.append(np.array_equal(problem.basis_seq[-1], solver.basis))
     assert all(res)
+
+
+@pytest.mark.parametrize("problem", phase_one_problems)
+def test_phase_one_of_two_phase_solvers(problem: StandardFormLPPhaseOneProblem):
+    solver = TwoPhaseSimplexSolver(problem.c, problem.A, problem.b)
+    solver.drive_artificial_variables_out_of_basis()
+    starting_basis = solver.artificial_tableau.basis
+    assert np.array_equal(starting_basis, problem.starting_basis_to_original_problem)
+    
