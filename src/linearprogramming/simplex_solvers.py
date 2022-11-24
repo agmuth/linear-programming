@@ -9,9 +9,9 @@ safe_div0 = np.vectorize(
 
 
 
-class NaiveSimplexSolver():
+class RevisedSimplexSolver():
     """
-        Naive Simplex algorithm that implements Bland's selection rule to avoid cycling. 
+        Revised Simplex algorithm that implements Bland's selection rule to avoid cycling. 
     """
     def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array) -> None:
         """
@@ -22,57 +22,25 @@ class NaiveSimplexSolver():
             b (np.array): m by 1 vector defining the equalies constraints.
             basis (np.array): array of length m mapping the columns of A to their indicies in the bfs 
         """
-        self.c, self.A, self.b = c, A, b
+        self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
         self.m, self.n = A.shape
         self.row_offset = 1
         self.col_offset = 1
-        self.basis = basis
-    
-        
+        self.basis = np.array(basis)
+        self.inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
+        self.bfs = self.inv_basis_matrix @ self.b  # basic feasible soln
+
     def solve(self, maxiters: int=100):
-        inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
-        self.bfs = inv_basis_matrix @ self.b  # basic feasible soln
-
         for _ in range(maxiters):
-            
-            reduced_costs = self.c - self.c[self.basis] @ inv_basis_matrix @ self.A
-            reduced_costs = reduced_costs.round(4)
-
+            reduced_costs = self.c - self.c[self.basis] @ self.inv_basis_matrix @ self.A
+            reduced_costs[self.basis] = 0  # numerical errors
             if reduced_costs.min() >= 0:
                 # optimal solution found break
                 break
-
-            col_in_A_to_enter_basis = np.argmax(reduced_costs < 0)
-            search_direction = inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis] 
-
-            if search_direction.max() <= 0:
-                # optimal cost is -inf -> problem is unbounded
-                raise ValueError("reduced cost vector has all non-positive entries. problem is unbounded.")
-
-            thetas = safe_div0(self.bfs, search_direction)
-            thetas[search_direction <= 0] = np.inf
-            col_in_basis_to_leave_basis = np.argmin(thetas)
-            theta_star = thetas[col_in_basis_to_leave_basis]
-            self.bfs -= theta_star * search_direction
-            self.bfs[col_in_basis_to_leave_basis] = theta_star
-            self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
-            inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
-
-class RevisedSimplexSolver(NaiveSimplexSolver):
-    def solve(self, maxiters: int=100):
-        inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
-        self.bfs = inv_basis_matrix @ self.b  # basic feasible soln
-
-        for _ in range(maxiters):
             
-            reduced_costs = self.c - self.c[self.basis] @ inv_basis_matrix @ self.A
-
-            if reduced_costs.min() >= 0:
-                # optimal solution found break
-                break
-
+            
             col_in_A_to_enter_basis = np.argmax(reduced_costs < 0)
-            search_direction = inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis] 
+            search_direction = self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis] 
 
             if search_direction.max() <= 0:
                 # optimal cost is -inf -> problem is unbounded
@@ -86,20 +54,20 @@ class RevisedSimplexSolver(NaiveSimplexSolver):
             self.bfs[col_in_basis_to_leave_basis] = theta_star
             self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
 
-            # update `inv_basis_matrix` w\o having to invert 
-            inv_basis_matrix = np.hstack([inv_basis_matrix, np.expand_dims(search_direction, 1)])
-            inv_basis_matrix[col_in_basis_to_leave_basis, :] /= search_direction[col_in_basis_to_leave_basis]
+            # update `self.inv_basis_matrix` w\o having to invert 
+            self.inv_basis_matrix = np.hstack([self.inv_basis_matrix, np.expand_dims(search_direction, 1)])
+            self.inv_basis_matrix[col_in_basis_to_leave_basis, :] /= search_direction[col_in_basis_to_leave_basis]
             for i in range(self.m):
                 if i == col_in_basis_to_leave_basis:
                     continue
-                inv_basis_matrix[i, :] -= search_direction[i] * inv_basis_matrix[col_in_basis_to_leave_basis, :] 
-            inv_basis_matrix = inv_basis_matrix[:, :-1]
+                self.inv_basis_matrix[i, :] -= search_direction[i] * self.inv_basis_matrix[col_in_basis_to_leave_basis, :] 
+            self.inv_basis_matrix = self.inv_basis_matrix[:, :-1]
 
 
 
 class Tableau():
     """
-        Tableau class for carrying out tableau operations of simplex algorithm. 
+        Tableau class for carrying out tableau operations of simplex algorithm that implements Bland's selection rule to avoid cycling. 
     """
     def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array) -> None:
         """
@@ -115,7 +83,7 @@ class Tableau():
         self.m, self.n = A.shape
         self.row_offset = 1
         self.col_offset = 1
-        self.basis = basis
+        self.basis = np.copy(basis)
         
         inv_basis_matrix = np.linalg.inv(A[:, self.basis])
         
@@ -157,10 +125,10 @@ class TableauSimplexSolver():
             basis (np.array): array of length m mapping the columns of A to their indicies in the bfs 
         """
         self.tableau = Tableau(c, A, b, basis)
-
     
     def solve(self, maxiters=100):
         for _ in range(maxiters):
+            self.tableau.tableau[0, 1:][self.tableau.basis] = 0  # avoid numerical errors
             if self.tableau.tableau[0, 1:].min() >= 0:  # 0^th row is reduced costs
                 # optimal solution found break
                 break
@@ -260,12 +228,22 @@ if __name__ == "__main__":
         ]
     )
     b = np.array([1, 3, 4])
-    starting_basis = np.array([0, 1, 2])
+    basis_seq = np.array(
+        [
+           [0, 1, 2],  # starting
+           [3, 1, 2],
+           [4, 1, 2],
+           [4, 6, 2], 
+           [4, 6, 7],
+        ]
+    )
 
-    optimal_bfs = np.array([1/2, 5/2, 3/2])
-    optimal_basis = np.array([4, 6, 7])
-
-    # solver = TableauSimplexSolver(c, A, b, starting_basis)
-    solver = TwoPhaseSimplexSolver(c, A, b)
-    solver.solve()
-    print()
+    solver = TableauSimplexSolver(c, A, b, basis_seq[0])
+    # solver = TwoPhaseSimplexSolver(c, A, b)
+    res = []
+    for _, basis in enumerate(basis_seq[1:]):
+        solver.solve(maxiters=1)
+        res.append(np.array_equal(basis, solver.basis))
+    solver.solve(maxiters=1) # check to make sure algorithm has terminated
+    res.append(np.array_equal(basis_seq[-1], solver.basis))
+    print(res)
