@@ -9,6 +9,7 @@ dual_simplex_div = np.vectorize(
 )
 
 
+
 class PrimalNaiveSimplexSolver():
     """
         Naive Simplex algorithm that implements Bland's selection rule to avoid cycling. 
@@ -67,6 +68,7 @@ class PrimalNaiveSimplexSolver():
         return {"x": self.bfs, "basis": self.basis, "cost": np.dot(self.c[self.basis], self.bfs), "iters": counter}
 
 
+
 class DualNaiveSimplexSolver(PrimalNaiveSimplexSolver):
     def _get_search_direction(self, col_in_basis_to_leave_basis):
         search_direction = self.inv_basis_matrix[col_in_basis_to_leave_basis, :] @ self.A
@@ -98,7 +100,8 @@ class DualNaiveSimplexSolver(PrimalNaiveSimplexSolver):
 
         return {"x": self.bfs, "basis": self.basis, "cost": np.dot(self.c[self.basis], self.bfs), "iters": counter}
 
-        
+
+
 class PrimalRevisedSimplexSolver():
     """
         Revised Simplex algorithm that implements Bland's selection rule to avoid cycling. 
@@ -121,7 +124,7 @@ class PrimalRevisedSimplexSolver():
         self.bfs = self.inv_basis_matrix @ self.b
         
 
-    def _primal_update_of_inv_basis_matrix(self, search_direction, col_in_basis_to_leave_basis):
+    def _revised_update_of_inv_basis_matrix(self, search_direction, col_in_basis_to_leave_basis):
         self.inv_basis_matrix = np.hstack([self.inv_basis_matrix, np.expand_dims(search_direction, 1)])
         self.inv_basis_matrix[col_in_basis_to_leave_basis, :] /= search_direction[col_in_basis_to_leave_basis]
         for i in range(self.m):
@@ -166,16 +169,7 @@ class PrimalRevisedSimplexSolver():
             self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
             
             # update basis and `self.inv_basis_matrix` w\o having to invert - again probably not any better as opposed to numpy
-            self._primal_update_of_inv_basis_matrix(search_direction, col_in_basis_to_leave_basis)
-            
-
-            # self.inv_basis_matrix = np.hstack([self.inv_basis_matrix, np.expand_dims(search_direction, 1)])
-            # self.inv_basis_matrix[col_in_basis_to_leave_basis, :] /= search_direction[col_in_basis_to_leave_basis]
-            # for i in range(self.m):
-            #     if i == col_in_basis_to_leave_basis:
-            #         continue
-            #     self.inv_basis_matrix[i, :] -= search_direction[i] * self.inv_basis_matrix[col_in_basis_to_leave_basis, :] 
-            # self.inv_basis_matrix = self.inv_basis_matrix[:, :-1]
+            self._revised_update_of_inv_basis_matrix(search_direction, col_in_basis_to_leave_basis)
 
         return {"x": self.bfs, "basis": self.basis, "cost": np.dot(self.c[self.basis], self.bfs), "iters": counter}
 
@@ -223,6 +217,8 @@ class Tableau():
                 continue
             self.tableau[i, :] -= self.tableau[i, pivot_col] * self.tableau[pivot_row, :]
 
+
+
 class PrimalTableauSimplexSolver():
     """
         Tableau based Simplex algorithm.  
@@ -238,6 +234,7 @@ class PrimalTableauSimplexSolver():
             basis (np.array): array of length m mapping the columns of A to their indicies in the bfs 
         """
         self.tableau = Tableau(c, A, b, basis)
+    
     
     def solve(self, maxiters=100):
         counter = 0
@@ -398,17 +395,4 @@ class DualTableauSimplexSolver():
        
 
 if __name__ == "__main__":
-    c = np.array([1, 1, 1, 0, 0, 0, 0, 0])
-    A = np.array(
-        [
-            [1, 0, 0, 3, 2, 1, 0, 0],
-            [0, 1, 0, 5, 1, 1, 1, 0], 
-            [0, 0, 1, 2, 5, 1, 0, 1]
-        ]
-    )
-    b = np.array([1, 3, 4])
-    starting_basis = np.array([0, 1, 2])
-    optimal_bfs = np.array([1/2, 5/2, 3/2])
-    optimal_basis = np.array([4, 6, 7])
-    solver = PrimalRevisedSimplexSolver(c, A, b, starting_basis)
-    solver.solve()
+    pass
