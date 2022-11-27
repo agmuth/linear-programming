@@ -167,15 +167,6 @@ class PrimalRevisedSimplexSolver():
             
             # update basis and `self.inv_basis_matrix` w\o having to invert - again probably not any better as opposed to numpy
             self._primal_update_of_inv_basis_matrix(search_direction, col_in_basis_to_leave_basis)
-            
-
-            # self.inv_basis_matrix = np.hstack([self.inv_basis_matrix, np.expand_dims(search_direction, 1)])
-            # self.inv_basis_matrix[col_in_basis_to_leave_basis, :] /= search_direction[col_in_basis_to_leave_basis]
-            # for i in range(self.m):
-            #     if i == col_in_basis_to_leave_basis:
-            #         continue
-            #     self.inv_basis_matrix[i, :] -= search_direction[i] * self.inv_basis_matrix[col_in_basis_to_leave_basis, :] 
-            # self.inv_basis_matrix = self.inv_basis_matrix[:, :-1]
 
         return {"x": self.bfs, "basis": self.basis, "cost": np.dot(self.c[self.basis], self.bfs), "iters": counter}
 
