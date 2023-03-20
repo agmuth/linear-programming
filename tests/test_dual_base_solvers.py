@@ -1,5 +1,5 @@
 import numpy as np
-from linearprogramming.simplex_solvers import *
+from linearprogramming.base_solvers import *
 import pytest
 from problems import *
 
