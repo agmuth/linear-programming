@@ -124,7 +124,8 @@ class PrimalRevisedSimplexSolver():
         self.bfs = self.inv_basis_matrix @ self.b
         
 
-    def _revised_update_of_inv_basis_matrix(self, search_direction, col_in_basis_to_leave_basis):
+    def _revised_update_of_inv_basis_matrix(self, col_in_A_to_enter_basis, col_in_basis_to_leave_basis):
+        search_direction = self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
         self.inv_basis_matrix = np.hstack([self.inv_basis_matrix, np.expand_dims(search_direction, 1)])
         self.inv_basis_matrix[col_in_basis_to_leave_basis, :] /= search_direction[col_in_basis_to_leave_basis]
         for i in range(self.m):
@@ -155,6 +156,7 @@ class PrimalRevisedSimplexSolver():
                 # reduced costs are all non-negative -> optimal soln found -> break
                 break
 
+
             if search_direction.max() <= 0:
                 # optimal cost is -inf -> problem is unbounded
                 raise ValueError("Problem is unbounded.")
@@ -169,7 +171,76 @@ class PrimalRevisedSimplexSolver():
             self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
             
             # update basis and `self.inv_basis_matrix` w\o having to invert - again probably not any better as opposed to numpy
-            self._revised_update_of_inv_basis_matrix(search_direction, col_in_basis_to_leave_basis)
+            self._revised_update_of_inv_basis_matrix(col_in_A_to_enter_basis, col_in_basis_to_leave_basis)
+
+        return {"x": self.bfs, "basis": self.basis, "cost": np.dot(self.c[self.basis], self.bfs), "iters": counter}
+    
+
+class DualRevisedSimplexSolver():
+    """
+        Revised Simplex algorithm that implements Bland's selection rule to avoid cycling. 
+    """
+    def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array) -> None:
+        """
+        Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
+        Args:
+            c (np.array): 1, n vector cost vector. 
+            A (np.array): m by n matrix defining the linear combinations to be subject to equality constraints.
+            b (np.array): m by 1 vector defining the equalies constraints.
+            basis (np.array): array of length m mapping the columns of A to their indicies in the bfs 
+        """
+        self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
+        self.m, self.n = A.shape
+        self.row_offset = 1
+        self.col_offset = 1
+        self.basis = np.array(basis)
+        self.inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
+        self.bfs = self.inv_basis_matrix @ self.b
+        
+    def _get_search_direction(self, col_in_basis_to_leave_basis):
+        search_direction = self.inv_basis_matrix[col_in_basis_to_leave_basis, :] @ self.A
+        search_direction[self.basis] = 0  # avoid numerical errors
+        return search_direction
+    
+    def _get_reduced_costs(self):
+        reduced_costs = self.c - self.c[self.basis] @ self.inv_basis_matrix @ self.A
+        reduced_costs[self.basis] = 0  #  avoid numerical errors
+        return reduced_costs
+
+    def _revised_update_of_inv_basis_matrix(self, col_in_A_to_enter_basis, col_in_basis_to_leave_basis):
+        search_direction = self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
+        self.inv_basis_matrix = np.hstack([self.inv_basis_matrix, np.expand_dims(search_direction, 1)])
+        self.inv_basis_matrix[col_in_basis_to_leave_basis, :] /= search_direction[col_in_basis_to_leave_basis]
+        for i in range(self.m):
+            if i == col_in_basis_to_leave_basis:
+                continue
+            self.inv_basis_matrix[i, :] -= search_direction[i] * self.inv_basis_matrix[col_in_basis_to_leave_basis, :] 
+        self.inv_basis_matrix = self.inv_basis_matrix[:, :-1]
+
+   
+    def solve(self, maxiters: int=100):
+        counter = 0
+        while counter < maxiters:
+            counter += 1
+
+            if self.bfs.min() >= 0:
+                # optimal solution found break
+                break
+
+            col_in_basis_to_leave_basis = np.argmax(self.bfs < 0)
+            search_direction = self._get_search_direction(col_in_basis_to_leave_basis)
+
+            if search_direction.min() >= 0:
+                raise ValueError("Problem is unbounded.")
+
+            reduced_costs = self._get_reduced_costs()
+            
+            thetas = dual_simplex_div(reduced_costs, search_direction)
+            col_in_A_to_enter_basis = np.argmin(thetas)
+            self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
+            self._revised_update_of_inv_basis_matrix(col_in_A_to_enter_basis, col_in_basis_to_leave_basis)
+            self.bfs = self.inv_basis_matrix @ self.b  
+
 
         return {"x": self.bfs, "basis": self.basis, "cost": np.dot(self.c[self.basis], self.bfs), "iters": counter}
 
@@ -210,12 +281,14 @@ class Tableau():
         
  
     def pivot(self, pivot_row: int, pivot_col: int):
-        self.basis[pivot_row-1] = pivot_col-1
-        self.tableau[pivot_row, :] /= self.tableau[pivot_row, pivot_col]
+        self.basis[pivot_row-1] = pivot_col-1  # update basis
+        # now preform elementary row operations to set column pivot_col of tableau to e_{pivot_row}
+        self.tableau[pivot_row, :] /= self.tableau[pivot_row, pivot_col]  # set self.tableau[pivot_row, pivot_col] to 1
+        # now need to 
         for i in range(self.tableau.shape[0]):
-            if i == pivot_row:
+            if i == pivot_row:  # nothing to do entry is already 1
                 continue
-            self.tableau[i, :] -= self.tableau[i, pivot_col] * self.tableau[pivot_row, :]
+            self.tableau[i, :] -= self.tableau[i, pivot_col] * self.tableau[pivot_row, :]  # zero out self.tableau[i, pivot_col]
 
 
 

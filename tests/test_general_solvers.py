@@ -1,7 +1,7 @@
 import numpy as np
 from linearprogramming.general_solvers import *
 import pytest
-from linearprogramming.utils import gen_lp_problem
+from tests.utils import gen_lp_problem
 
 TOL = 1e-2
 SOLVERS = [TwoPhaseSimplexSolver]

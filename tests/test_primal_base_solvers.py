@@ -1,7 +1,7 @@
 import numpy as np
 from linearprogramming.base_solvers import *
 import pytest
-from problems import *
+from tests.problems import *
 
 TOL = 1e-2
 SOLVERS = [PrimalNaiveSimplexSolver, PrimalRevisedSimplexSolver, PrimalTableauSimplexSolver]

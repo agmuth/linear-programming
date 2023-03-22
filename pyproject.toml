@@ -3,7 +3,10 @@
 requires = ["setuptools", "wheel"]  # PEP 508 specifications.
 
 [tool.pytest.ini_options]
-addopts = [
-    "--import-mode=importlib",
+testpaths = [
+    "tests/"
 ]
-pythonpath = "tests/"
+#addopts = [
+#    "--import-mode=importlib",
+#]
+#pythonpath = "tests/"
