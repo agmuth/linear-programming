@@ -68,19 +68,4 @@ class TwoPhaseSimplexSolver():
         return res
 
 if __name__ == "__main__":
-    from utils import *
-    c, A, b, basis = gen_lp_problem(
-        c=np.ones(2),
-        k=2, 
-        u=1*np.ones(2),
-        G = np.array(
-            [
-                [1, 0],
-                [0, 1], 
-            ]
-        )
-    )
-
-    solver = TwoPhaseSimplexSolver(c, A, b)
-    solver.solve()
-    print()
+    pass
