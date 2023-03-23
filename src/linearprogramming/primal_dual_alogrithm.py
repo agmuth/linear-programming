@@ -24,7 +24,9 @@ class PrimalDualAlgorithm():
 
     def solve(self):
 
-        bfs_unrestricted_dual = np.zeros(A.shape[0])  # can always do this if c >= 0
+        bfs_unrestricted_dual = np.zeros(self.m)  # can always do this if c >= 0
+        non_artificial_vars = np.arange(self.n)
+        artifical_vars = np.arange(self.n, 2*self.n)
 
         while True:
             admissiable_set = np.isclose(bfs_unrestricted_dual @ self.A,  self.c)
@@ -42,17 +44,25 @@ class PrimalDualAlgorithm():
                 basis_restricted_primal = res_restricted_primal["basis"]
                 bfs_restricted_dual = c_restricted_primal[basis_restricted_primal] @ np.linalg.inv(A_restricted_primal[:, basis_restricted_primal])
 
-                theta = np.min(primal_simplex_div(c - bfs_unrestricted_dual @ A, bfs_restricted_dual @ A)[inadmissable_set])
+                theta = np.min(primal_simplex_div(self.c - bfs_unrestricted_dual @ self.A, bfs_restricted_dual @ self.A)[inadmissable_set])
                 bfs_unrestricted_dual += theta * bfs_restricted_dual
 
             else:
                 break
 
+        
+        bfs_restricted_primal = np.zeros(2*admissiable_set.sum())
+        bfs_restricted_primal[res_restricted_primal['basis']] += res_restricted_primal['x']
+
         bfs_unrestricted_primal = np.zeros(self.n)
-        bfs_unrestricted_primal[admissiable_set] += res_restricted_primal['x'][res_restricted_primal['basis']]
+        bfs_unrestricted_primal[admissiable_set] += bfs_restricted_primal[:admissiable_set.sum()]
+
+        basis_unrestricted_primal = np.arange(self.n)[admissiable_set][res_restricted_primal['basis'][res_restricted_primal['basis'] < admissiable_set.sum()]]
+
+        res = {"bfs": bfs_unrestricted_primal, "basis": basis_unrestricted_primal, "cost": np.dot(self.c, bfs_unrestricted_primal), "iters": -1}
 
 
-        return bfs_unrestricted_primal
+        return res
 
 
 

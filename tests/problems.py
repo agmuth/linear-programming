@@ -135,6 +135,41 @@ primal_solver_blands_sequence_problem1 = StandardFormLPBlandsSequence(
     ),
 )
 
+primal_dual_test_problem1 = StandardFormLPP(
+    # example 6.8 pg 272 linear programming and network flows
+    c = np.array([3, 4, 6, 7, 5, 0, 0]),
+    A = np.array(
+        [
+            [2, -1, 1, 6, -5, -1, 0],
+            [1, 1, 2, 1, 2, 0, -1],
+        ]
+    ),
+    b = np.array([6, 3]),
+   starting_basis = None,
+   optimal_bfs = np.array([3, 0, 0, 0, 0, 0, 0]),
+   optimal_basis = None
+)
+
+primal_dual_test_problem2 = StandardFormLPP(
+   # pg 96 linear and nonlinear programming
+    c = np.array([2, 1, 4]),
+    A = np.array(
+        [
+            [1, 1, 2],
+            [2, 1, 3],
+        ]
+    ),
+    b = np.array([3, 5]),
+   starting_basis = None,
+   optimal_bfs = np.array([2, 1, 0]),
+   optimal_basis = None
+)
+
+
+
+
+
 PRIMAL_BASE_SOLVER_PROBLEMS = [v for k, v in globals().items() if "primal_standard_form_lpp" in k]
 DUAL_BASE_SOLVER_PROBLEMS = [v for k, v in globals().items() if "dual_standard_form_lpp" in k]
 PRIMAL_BASE_SOLVER_BLANDS_SEQUENCE_PROBLEMS = [v for k, v in globals().items() if "primal_solver_blands_sequence_problem" in k]
+PRIMAL_DUAL_SOLVER_PROBLEMS = [v for k, v in globals().items() if "primal_dual_test_problem" in k]
