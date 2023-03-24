@@ -1,5 +1,4 @@
 import numpy as np
-
 from linearprogramming.tableau import Tableau
 from linearprogramming.utils import *
 from linearprogramming.primal_simplex_solvers import *
@@ -151,4 +150,3 @@ class DualTableauSimplexSolver():
         self.basis = self.tableau.basis
         self.bfs = self.tableau.tableau[1:, 0]
         return {"x": self.bfs, "basis": self.basis, "cost": self.tableau.tableau[0, 0], "iters": self.counter}
-

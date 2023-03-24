@@ -166,6 +166,20 @@ primal_dual_test_problem2 = StandardFormLPP(
 )
 
 
+primal_dual_test_problem3 = StandardFormLPP(
+   c = np.array([-2, 1, -1, 0, 0]),
+    A = np.array(
+        [
+            [1, 1, 1, 1, 0], 
+            [-1, 2, 0, 0, 1]
+        ]
+    ),
+    b = np.array([6, 4]),
+   starting_basis = None,
+   optimal_bfs = np.array([ 6.,  0.,  0.,  0., 10.]),
+   optimal_basis = None
+)
+
 
 
 
