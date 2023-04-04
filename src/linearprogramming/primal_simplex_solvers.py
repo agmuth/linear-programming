@@ -37,6 +37,9 @@ class PrimalNaiveSimplexSolver():
 
     def _update_inv_basis_matrix(self):
         self.inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
+
+    def _update_basis(self, col_in_basis_to_leave_basis, col_in_A_to_enter_basis):
+        self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
     
     def _primal_get_search_direction(self, col_in_A_to_enter_basis):
         search_direction = self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis] 
@@ -73,7 +76,7 @@ class PrimalNaiveSimplexSolver():
 
             thetas = primal_simplex_div(self.bfs, search_direction)
             col_in_basis_to_leave_basis = np.argmin(thetas)
-            self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
+            self._update_basis(col_in_basis_to_leave_basis,  col_in_A_to_enter_basis)
             self._update_inv_basis_matrix()
             self.bfs = self.inv_basis_matrix @ self.b
 
@@ -92,20 +95,39 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
             basis (np.array): array of length m mapping the columns of A to their indicies in the bfs 
     """ 
 
-    def _revised_update_of_inv_basis_matrix(self, col_in_A_to_enter_basis, col_in_basis_to_leave_basis):
+    def _calc_premultiplication_inv_basis_update_matrix(self, col_in_A_to_enter_basis, col_in_basis_to_leave_basis):
         search_direction = self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
-        self.inv_basis_matrix = np.hstack([self.inv_basis_matrix, np.expand_dims(search_direction, 1)])
-        self.inv_basis_matrix[col_in_basis_to_leave_basis, :] /= search_direction[col_in_basis_to_leave_basis]
-        for i in range(self.m):
-            if i == col_in_basis_to_leave_basis:
-                continue
-            self.inv_basis_matrix[i, :] -= search_direction[i] * self.inv_basis_matrix[col_in_basis_to_leave_basis, :] 
-        self.inv_basis_matrix = self.inv_basis_matrix[:, :-1]
+        premultiplication_inv_basis_update_matrix = np.eye(self.m)
+        premultiplication_inv_basis_update_matrix[:, col_in_basis_to_leave_basis] = -search_direction
+        premultiplication_inv_basis_update_matrix[col_in_basis_to_leave_basis, col_in_basis_to_leave_basis] = 1
+        premultiplication_inv_basis_update_matrix[:, col_in_basis_to_leave_basis] /= search_direction[col_in_basis_to_leave_basis]
+        return premultiplication_inv_basis_update_matrix
+
+    def _update_of_inv_basis_matrix(self, premultiplication_inv_basis_update_matrix):      
+        # override `_update_of_inv_basis_matrix` from PrimalNaiveSimplexSolver
+        self.inv_basis_matrix = premultiplication_inv_basis_update_matrix @ self.inv_basis_matrix
+
+    def _update_update_bfs(self, premultiplication_inv_basis_update_matrix):
+        # override `_update_update_bfs` from PrimalNaiveSimplexSolver
+        self.bfs = premultiplication_inv_basis_update_matrix @ self.bfs
+
  
     def solve(self, maxiters: int=100):
         self.counter = 0
         while self.counter < maxiters:
             self.counter += 1
+
+            # # generate reduced costs one at a time taking first improvement as entering col
+            # for j in range(self.n):
+            #     if j in self.basis:
+            #         continue
+            #     reduced_cost = self.c[j] - self.c[self.basis] @ self.inv_basis_matrix @ self.A[:, j]
+            #     if reduced_cost < 0:
+            #        col_in_A_to_enter_basis = j
+            #        break
+            # else:
+            #     # optimal solution found -> break
+            #     break
 
             reduced_costs = self._get_reduced_costs()
             if self._primal_check_for_optimality(reduced_costs):
@@ -114,22 +136,17 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
             
             col_in_A_to_enter_basis = self._primal_get_col_in_A_to_enter_basis(reduced_costs)
             search_direction = self._primal_get_search_direction(col_in_A_to_enter_basis)
-
             if self._primal_check_for_unbnoundedness(search_direction):
                 # optimal cost is -inf -> problem is unbounded
                 raise ValueError("Problem is unbounded.")
 
             thetas = primal_simplex_div(self.bfs, search_direction)
             
-            # update bfs w\o matrix mult - again probably not any better as oppsed to numpy
             col_in_basis_to_leave_basis = np.argmin(thetas)
-            theta_star = thetas[col_in_basis_to_leave_basis]
-            self.bfs -= theta_star * search_direction
-            self.bfs[col_in_basis_to_leave_basis] = theta_star
-            self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
-            
-            # update basis and `self.inv_basis_matrix` w\o having to invert - again probably not any better as opposed to numpy
-            self._revised_update_of_inv_basis_matrix(col_in_A_to_enter_basis, col_in_basis_to_leave_basis)
+            premultiplication_inv_basis_update_matrix = self._calc_premultiplication_inv_basis_update_matrix(col_in_A_to_enter_basis, col_in_basis_to_leave_basis)
+            self._update_basis(col_in_basis_to_leave_basis,  col_in_A_to_enter_basis)
+            self._update_of_inv_basis_matrix(premultiplication_inv_basis_update_matrix)
+            self._update_update_bfs(premultiplication_inv_basis_update_matrix)
 
         return self._get_solver_return_values()
     
@@ -181,3 +198,95 @@ class PrimalTableauSimplexSolver():
         return {"x": self.bfs, "basis": self.basis, "cost": self.tableau.tableau[0, 0], "iters": self.counter}
 
 
+# class PrimalCompactRevisedSimplexSolver():
+#     """
+#         CARRY matrix implemnetation of Simplex algorithm that implements Bland's selection rule to avoid cycling. 
+#     """
+#     def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array) -> None:
+#         """
+#         Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
+#         Args:
+#             c (np.array): 1, n vector cost vector. 
+#             A (np.array): m by n matrix defining the linear combinations to be subject to equality constraints.
+#             b (np.array): m by 1 vector defining the equalies constraints.
+#             basis (np.array): array of length m mapping the columns of A to their indicies in the bfs 
+#         """
+#         self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
+#         self.m, self.n = A.shape
+#         self.row_offset = 1
+#         self.col_offset = 1
+#         self.basis = np.array(basis)
+#         inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
+#         self.bfs = inv_basis_matrix @ self.b
+#         self.counter = 0
+#         dual_bfs = (self.c[self.basis].T @ inv_basis_matrix).reshape((1, b.shape[0]))
+#         self.carry = np.vstack(
+#             [
+#             -1*np.hstack([np.zeros((1, 1)), dual_bfs]),
+#             np.hstack([(self.b @ inv_basis_matrix).reshape((b.shape[0], 1)), inv_basis_matrix])
+#             ]
+#         )
+
+
+#     def solve(self, maxiters: int=100):
+#         self.counter = 0
+#         while self.counter < maxiters:
+#             self.counter += 1
+
+
+            # for j in range(self.n):
+            #     if j in self.basis:
+            #         continue
+            #     reduced_cost = self.c[j] + self.carry[0, 1:] @ self.A[:, j]
+            #     if reduced_cost < 0:
+            #        col_in_A_to_enter_basis = j
+            #        break
+            # else:
+            #     # optimal solution found -> break
+            #     break
+
+            # search_direction = self.carry[1:, 1:] @ self.A[:, col_in_A_to_enter_basis]
+            # if search_direction.max() <= 0:
+            #     # optimal cost is -inf -> problem is unbounded
+            #     raise ValueError("Problem is unbounded.")
+            
+#             thetas = primal_simplex_div(self.carry[1:, 0], search_direction)
+            
+#             # update bfs w\o matrix mult - again probably not any better as oppsed to numpy
+#             col_in_basis_to_leave_basis = np.argmin(thetas)
+
+            
+#             carry_update_matrix = np.eye(self.m+1)
+#             carry_update_matrix[0, col_in_basis_to_leave_basis] = self.carry[0, col_in_basis_to_leave_basis] / 
+#             carry_update_matrix[1:, col_in_basis_to_leave_basis] = search_direction
+#             carry_update_matrix[col_in_basis_to_leave_basis, col_in_basis_to_leave_basis] = 1
+#             carry_update_matrix[:, col_in_basis_to_leave_basis] /= search_direction[col_in_basis_to_leave_basis]
+
+#             self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
+
+#         self.bfs = self.carry[1:, 1:] @ self.b
+#         return {"x": self.bfs, "basis": self.basis, "cost": np.dot(self.c[self.basis], self.bfs), "iters": self.counter}
+    
+
+# if __name__ == "__main__":
+#     c = np.array([1, 1, 1, 0, 0, 0, 0, 0])
+#     A = np.array(
+#         [
+#             [1, 0, 0, 3, 2, 1, 0, 0],
+#             [0, 1, 0, 5, 1, 1, 1, 0], 
+#             [0, 0, 1, 2, 5, 1, 0, 1]
+#         ]
+#     )
+#     b = np.array([1, 3, 4])
+#     basis_seq = np.array(
+#         [
+#            [0, 1, 2],  # starting
+#            [3, 1, 2],
+#            [4, 1, 2],
+#            [4, 6, 2], 
+#            [4, 6, 7],
+#         ]
+#     )
+#     solver = PrimalRevisedSimplexSolver(c, A, b, basis_seq[0])
+#     solver.solve()
+#     solver._get_solver_return_values()

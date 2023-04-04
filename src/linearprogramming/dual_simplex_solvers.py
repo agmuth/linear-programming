@@ -90,9 +90,11 @@ class DualRevisedSimplexSolver(DualNaiveSimplexSolver, PrimalRevisedSimplexSolve
             
             thetas = dual_simplex_div(reduced_costs, search_direction)
             col_in_A_to_enter_basis = np.argmin(thetas)
-            self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
-            self._revised_update_of_inv_basis_matrix(col_in_A_to_enter_basis, col_in_basis_to_leave_basis)
-            self.bfs = self.inv_basis_matrix @ self.b  
+    
+            premultiplication_inv_basis_update_matrix = self._calc_premultiplication_inv_basis_update_matrix(col_in_A_to_enter_basis, col_in_basis_to_leave_basis)
+            self._update_basis(col_in_basis_to_leave_basis,  col_in_A_to_enter_basis)
+            self._update_of_inv_basis_matrix(premultiplication_inv_basis_update_matrix)
+            self._update_update_bfs(premultiplication_inv_basis_update_matrix)
 
 
         return self._get_solver_return_values()
