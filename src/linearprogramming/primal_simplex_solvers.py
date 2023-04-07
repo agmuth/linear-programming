@@ -22,18 +22,25 @@ class PrimalNaiveSimplexSolver():
         self.row_offset = 1
         self.col_offset = 1
         self.basis = np.array(basis)
+        # need to set these here instead of calling `_update` mthods for inheritence 
         self.inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
         self.bfs = self.inv_basis_matrix @ self.b
-        self.counter = 0
+        self.counter = None
 
     def _get_reduced_costs(self):
         reduced_costs = self.c - self.c[self.basis] @ self.inv_basis_matrix @ self.A
         reduced_costs[self.basis] = 0  # avoid numerical errors
         return reduced_costs
     
+    def _update_bfs(self):
+        self.bfs = self.inv_basis_matrix @ self.b
+    
     def _get_solver_return_values(self):
-        res = {"x": self.bfs, "basis": self.basis, "cost": np.dot(self.c[self.basis], self.bfs), "iters": self.counter}
+        res = {"x": self.bfs, "basis": self.basis, "cost": self._calc_bfs_cost(), "iters": self.counter}
         return res
+
+    def _calc_bfs_cost(self):
+        return np.dot(self.c[self.basis], self.bfs)
 
     def _update_inv_basis_matrix(self):
         self.inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
@@ -42,7 +49,10 @@ class PrimalNaiveSimplexSolver():
         self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
     
     def _primal_get_search_direction(self, col_in_A_to_enter_basis):
-        search_direction = self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis] 
+        search_direction = self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
+        if self._primal_check_for_unbnoundedness(search_direction):
+            # optimal cost is -inf -> problem is unbounded
+            raise ValueError("Problem is unbounded.") 
         return search_direction
     
     def _primal_get_col_in_A_to_enter_basis(self, reduced_costs):
@@ -56,6 +66,13 @@ class PrimalNaiveSimplexSolver():
     def _primal_check_for_unbnoundedness(self, search_direction):
         problem_is_unbounded = (search_direction.max() <= 0)
         return problem_is_unbounded
+    
+    def _primal_ratio_test(self, col_in_A_to_enter_basis):
+        # primal ratio test
+        search_direction = self._primal_get_search_direction(col_in_A_to_enter_basis)
+        thetas = primal_simplex_div(self.bfs, search_direction)
+        col_in_basis_to_leave_basis = np.argmin(thetas)
+        return col_in_basis_to_leave_basis
 
     def solve(self, maxiters: int=100):
         self.counter = 0
@@ -68,20 +85,15 @@ class PrimalNaiveSimplexSolver():
                 break
             
             col_in_A_to_enter_basis = self._primal_get_col_in_A_to_enter_basis(reduced_costs)
-            search_direction = self._primal_get_search_direction(col_in_A_to_enter_basis)
+            col_in_basis_to_leave_basis = self._primal_ratio_test(col_in_A_to_enter_basis)
 
-            if self._primal_check_for_unbnoundedness(search_direction):
-                # optimal cost is -inf -> problem is unbounded
-                raise ValueError("Problem is unbounded.")
-
-            thetas = primal_simplex_div(self.bfs, search_direction)
-            col_in_basis_to_leave_basis = np.argmin(thetas)
             self._update_basis(col_in_basis_to_leave_basis,  col_in_A_to_enter_basis)
             self._update_inv_basis_matrix()
-            self.bfs = self.inv_basis_matrix @ self.b
+            self._update_bfs()
 
         return self._get_solver_return_values()
-
+    
+    
 
 class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
     """
@@ -97,19 +109,19 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
 
     def _calc_premultiplication_inv_basis_update_matrix(self, col_in_A_to_enter_basis, col_in_basis_to_leave_basis):
         search_direction = self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
-        premultiplication_inv_basis_update_matrix = np.eye(self.m)
-        premultiplication_inv_basis_update_matrix[:, col_in_basis_to_leave_basis] = -search_direction
-        premultiplication_inv_basis_update_matrix[col_in_basis_to_leave_basis, col_in_basis_to_leave_basis] = 1
-        premultiplication_inv_basis_update_matrix[:, col_in_basis_to_leave_basis] /= search_direction[col_in_basis_to_leave_basis]
-        return premultiplication_inv_basis_update_matrix
+        premult_inv_basis_update_matrix = np.eye(self.m)
+        premult_inv_basis_update_matrix[:, col_in_basis_to_leave_basis] = -search_direction
+        premult_inv_basis_update_matrix[col_in_basis_to_leave_basis, col_in_basis_to_leave_basis] = 1
+        premult_inv_basis_update_matrix[:, col_in_basis_to_leave_basis] /= search_direction[col_in_basis_to_leave_basis]
+        return premult_inv_basis_update_matrix
 
-    def _update_of_inv_basis_matrix(self, premultiplication_inv_basis_update_matrix):      
+    def _update_of_inv_basis_matrix(self, premult_inv_basis_update_matrix):      
         # override `_update_of_inv_basis_matrix` from PrimalNaiveSimplexSolver
-        self.inv_basis_matrix = premultiplication_inv_basis_update_matrix @ self.inv_basis_matrix
+        self.inv_basis_matrix = premult_inv_basis_update_matrix @ self.inv_basis_matrix
 
-    def _update_update_bfs(self, premultiplication_inv_basis_update_matrix):
+    def _update_update_bfs(self, premult_inv_basis_update_matrix):
         # override `_update_update_bfs` from PrimalNaiveSimplexSolver
-        self.bfs = premultiplication_inv_basis_update_matrix @ self.bfs
+        self.bfs = premult_inv_basis_update_matrix @ self.bfs
 
  
     def solve(self, maxiters: int=100):
@@ -129,24 +141,21 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
             #     # optimal solution found -> break
             #     break
 
+            self.counter += 1
+
             reduced_costs = self._get_reduced_costs()
             if self._primal_check_for_optimality(reduced_costs):
                 # optimal solution found break
                 break
             
             col_in_A_to_enter_basis = self._primal_get_col_in_A_to_enter_basis(reduced_costs)
-            search_direction = self._primal_get_search_direction(col_in_A_to_enter_basis)
-            if self._primal_check_for_unbnoundedness(search_direction):
-                # optimal cost is -inf -> problem is unbounded
-                raise ValueError("Problem is unbounded.")
+            col_in_basis_to_leave_basis = self._primal_ratio_test(col_in_A_to_enter_basis)
 
-            thetas = primal_simplex_div(self.bfs, search_direction)
-            
-            col_in_basis_to_leave_basis = np.argmin(thetas)
-            premultiplication_inv_basis_update_matrix = self._calc_premultiplication_inv_basis_update_matrix(col_in_A_to_enter_basis, col_in_basis_to_leave_basis)
+            premult_inv_basis_update_matrix = self._calc_premultiplication_inv_basis_update_matrix(col_in_A_to_enter_basis, col_in_basis_to_leave_basis)
+
             self._update_basis(col_in_basis_to_leave_basis,  col_in_A_to_enter_basis)
-            self._update_of_inv_basis_matrix(premultiplication_inv_basis_update_matrix)
-            self._update_update_bfs(premultiplication_inv_basis_update_matrix)
+            self._update_of_inv_basis_matrix(premult_inv_basis_update_matrix)
+            self._update_update_bfs(premult_inv_basis_update_matrix)
 
         return self._get_solver_return_values()
     

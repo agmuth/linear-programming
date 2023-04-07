@@ -19,6 +19,8 @@ class DualNaiveSimplexSolver(PrimalNaiveSimplexSolver):
     def _dual_get_search_direction(self, col_in_basis_to_leave_basis):
         search_direction = self.inv_basis_matrix[col_in_basis_to_leave_basis, :] @ self.A
         search_direction[self.basis] = 0  # avoid numerical errors
+        if self._dual_check_for_unbnoundedness(search_direction):  # maybe move into calc
+                raise ValueError("Problem is unbounded.")
         return search_direction
     
     def _dual_get_col_in_basis_to_leave_basis(self):
@@ -32,6 +34,13 @@ class DualNaiveSimplexSolver(PrimalNaiveSimplexSolver):
     def _dual_check_for_unbnoundedness(self, search_direction):
         problem_is_unbounded = (search_direction.min() >= 0)
         return problem_is_unbounded
+    
+    def _dual_ratio_test(self, col_in_basis_to_leave_basis):
+        search_direction = self._dual_get_search_direction(col_in_basis_to_leave_basis)
+        reduced_costs = self._get_reduced_costs()
+        thetas = dual_simplex_div(reduced_costs, search_direction)
+        col_in_A_to_enter_basis = np.argmin(thetas)
+        return col_in_A_to_enter_basis
 
     def solve(self, maxiters: int=100):
         self.counter = 0
@@ -43,22 +52,14 @@ class DualNaiveSimplexSolver(PrimalNaiveSimplexSolver):
                 break
 
             col_in_basis_to_leave_basis = self._dual_get_col_in_basis_to_leave_basis()
-            search_direction = self._dual_get_search_direction(col_in_basis_to_leave_basis)
-
-            if self._dual_check_for_unbnoundedness(search_direction):
-                raise ValueError("Problem is unbounded.")
-
-            reduced_costs = self._get_reduced_costs()
-            
-            thetas = dual_simplex_div(reduced_costs, search_direction)
-            col_in_A_to_enter_basis = np.argmin(thetas)
-            self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
+            col_in_A_to_enter_basis = self._dual_ratio_test(col_in_basis_to_leave_basis)
+            self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
             self._update_inv_basis_matrix()
-            self.bfs = self.inv_basis_matrix @ self.b            
+            self._update_bfs()           
 
         return self._get_solver_return_values()
     
-
+    
 class DualRevisedSimplexSolver(DualNaiveSimplexSolver, PrimalRevisedSimplexSolver):
     """
         Revised  Dual Simplex algorithm that implements Bland's selection rule to avoid cycling. 
@@ -95,7 +96,6 @@ class DualRevisedSimplexSolver(DualNaiveSimplexSolver, PrimalRevisedSimplexSolve
             self._update_basis(col_in_basis_to_leave_basis,  col_in_A_to_enter_basis)
             self._update_of_inv_basis_matrix(premultiplication_inv_basis_update_matrix)
             self._update_update_bfs(premultiplication_inv_basis_update_matrix)
-
 
         return self._get_solver_return_values()
 
