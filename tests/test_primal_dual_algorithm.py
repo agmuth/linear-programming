@@ -1,5 +1,5 @@
 import numpy as np
-from linearprogramming.primal_dual_alogrithm import *
+from linprog.primal_dual_alogrithm import *
 import pytest
 from tests.problems import PRIMAL_DUAL_SOLVER_PROBLEMS
 

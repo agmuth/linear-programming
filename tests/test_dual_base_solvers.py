@@ -1,5 +1,5 @@
 import numpy as np
-from linearprogramming.dual_simplex_solvers import *
+from linprog.dual_simplex_solvers import *
 import pytest
 from tests.problems import *
 

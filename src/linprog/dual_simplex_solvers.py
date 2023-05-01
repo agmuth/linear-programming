@@ -1,7 +1,7 @@
 import numpy as np
-from linearprogramming.tableau import Tableau
-from linearprogramming.utils import *
-from linearprogramming.primal_simplex_solvers import *
+from linprog.tableau import Tableau
+from linprog.utils import *
+from linprog.primal_simplex_solvers import *
 
 
 class DualNaiveSimplexSolver(PrimalNaiveSimplexSolver):

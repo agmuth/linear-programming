@@ -1,5 +1,5 @@
 import numpy as np 
-from linearprogramming.primal_simplex_solvers import *
+from linprog.primal_simplex_solvers import *
 
 class TwoPhaseSimplexSolver():
     """
