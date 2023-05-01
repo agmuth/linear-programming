@@ -1,7 +1,7 @@
 import numpy as np
 
-from linearprogramming.tableau import Tableau
-from linearprogramming.utils import *
+from linprog.tableau import Tableau
+from linprog.utils import *
 
 
 class PrimalNaiveSimplexSolver():

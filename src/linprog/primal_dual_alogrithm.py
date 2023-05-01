@@ -1,6 +1,6 @@
 import numpy as np 
-from linearprogramming.primal_simplex_solvers import *
-from linearprogramming.utils import primal_simplex_div
+from linprog.primal_simplex_solvers import *
+from linprog.utils import primal_simplex_div
 from math import factorial
 
 class PrimalDualAlgorithm():
