@@ -4,25 +4,33 @@ from linprog.utils import primal_simplex_div
 from math import factorial
 
 class PrimalDualAlgorithm():
-    """
-        Primal Dual algorithm 
-    """
-    def __init__(self, c: np.array, A: np.array, b: np.array) -> None:
+    """Primal-Dual Algorithm for Linear Programs."""
+    def __init__(self, c: np.array, A: np.array, b: np.array):
+        """Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
+
+        Parameters
+        ----------
+        c : np.array
+            (1, n) cost vector
+        A : np.array
+            (m, n) matirx defining linear combinations subject to equality constraints.
+        b : np.array
+            (m, 1) vector defining the equality constraints.
         """
-        Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
-        Args:
-            c (np.array): 1, n vector cost vector. 
-            A (np.array): m by n matrix defining the linear combinations to be subject to equality constraints.
-            b (np.array): m by 1 vector defining the equalies constraints.
-            basis (np.array): array of length m mapping the columns of A to their indicies in the bfs 
-        """
-        # assume c is nongeative
         self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
         self.m, self.n = A.shape
         self.counter = 0
 
     def solve(self):
-        bfs_unrestricted_dual = np.zeros(self.m) # can always do this if c >= 0
+        """Loop implementeing primal-dual algorithm.
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
+        # zero vector is dual feasible if c >= 0
+        bfs_unrestricted_dual = np.zeros(self.m) 
         expanded_dual_to_get_initial_bfs = False
         if self.c.min() < 0:
             expanded_dual_to_get_initial_bfs = True
@@ -30,7 +38,6 @@ class PrimalDualAlgorithm():
             alpha = np.abs(self.A).max()
             beta = np.abs(self.b).max()
             M = factorial(self.m) * alpha**(self.m-1) * beta
-            
             # pg. 105 combinatorial optimization - algorithms and complexity 
             self.c = np.hstack([self.c, np.zeros(1)])
             self.A = np.vstack([np.hstack([self.A, np.zeros((self.m, 1))]), np.ones((1, self.n+1))])
@@ -39,6 +46,7 @@ class PrimalDualAlgorithm():
             bfs_unrestricted_dual = np.hstack([bfs_unrestricted_dual, self.c.min()*np.ones(1)])
 
         while True:
+            # solve restricted primal
             admissiable_set = np.isclose(bfs_unrestricted_dual @ self.A,  self.c)
             inadmissable_set = ~admissiable_set
 
@@ -51,14 +59,14 @@ class PrimalDualAlgorithm():
             res_restricted_primal = solver_restricted_primal.solve()
 
             if res_restricted_primal["cost"] > 0.0:
+                # complementary slackness/primal feasibility to original problem not satisfied/attained
+                # modify dual soln so that more variables are able to take non zero values in the restricted primal
                 basis_restricted_primal = res_restricted_primal["basis"]
                 bfs_restricted_dual = c_restricted_primal[basis_restricted_primal] @ np.linalg.inv(A_restricted_primal[:, basis_restricted_primal])
-
                 theta = np.min(primal_simplex_div(self.c - bfs_unrestricted_dual @ self.A, bfs_restricted_dual @ self.A)[inadmissable_set])
                 bfs_unrestricted_dual += theta * bfs_restricted_dual
-
             else:
-                break
+                break  # complementary slackness attained
 
         
         bfs_restricted_primal = np.zeros(2*admissiable_set.sum())
@@ -75,43 +83,6 @@ class PrimalDualAlgorithm():
             bfs_unrestricted_primal = bfs_unrestricted_primal[:-1]
 
         res = {"bfs": bfs_unrestricted_primal, "basis": basis_unrestricted_primal, "cost": cost_unrestricted_primal, "iters": -1}
-
-
+        
         return res
 
-
-
-if __name__ == "__main__":
-    # # example 6.8 pg 272 linear programming and network flows
-    # c = np.array([3, 4, 6, 7, 5, 0, 0])
-    # A = np.array(
-    #     [
-    #         [2, -1, 1, 6, -5, -1, 0],
-    #         [1, 1, 2, 1, 2, 0, -1],
-    #     ]
-    # )
-    # b = np.array([6, 3])
-
-    # # pg 96 linear and nonlinear programming
-    # c = np.array([2, 1, 4])
-    # A = np.array(
-    #     [
-    #         [1, 1, 2],
-    #         [2, 1, 3],
-    #     ]
-    # )
-    # b = np.array([3, 5])
-
-    # ex 6.10 pg. 279 linear programming and network flows soln = (6, 0, 10)
-    c = np.array([-2, 1, -1, 0, 0])
-    A = np.array(
-        [
-            [1, 1, 1, 1, 0], 
-            [-1, 2, 0, 0, 1]
-        ]
-    )
-    b = np.array([6, 4])
-
-    solver = PrimalDualAlgorithm(c, A, b)
-    bfs_unrestricted_primal = solver.solve()
-    print(bfs_unrestricted_primal)
