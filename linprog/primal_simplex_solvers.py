@@ -219,10 +219,9 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
     
 
 class PrimalTableauSimplexSolver():
-    """Tableau implementation of Primal Simplex Algorithm.
-    """
+    """Tableau implementation of Primal Simplex Algorithm."""
     def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array):
-        """_summary_
+        """init
 
         Parameters
         ----------
