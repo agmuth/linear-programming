@@ -5,17 +5,21 @@ from linprog.utils import *
 
 
 class PrimalNaiveSimplexSolver():
-    """
-        Naive Simplex algorithm that implements Bland's selection rule to avoid cycling. 
-    """
-    def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array) -> None:
-        """
-        Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
-        Args:
-            c (np.array): 1, n vector cost vector. 
-            A (np.array): m by n matrix defining the linear combinations to be subject to equality constraints.
-            b (np.array): m by 1 vector defining the equalies constraints.
-            basis (np.array): array of length m mapping the columns of A to their indicies in the bfs 
+    """Naive Primal Simplex algorithm that implements Bland's selection rule to avoid cycling."""
+    
+    def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array):
+        """Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
+
+        Parameters
+        ----------
+        c : np.array
+            (1, n) cost vector
+        A : np.array
+            (m, n) matirx defining linear combinations subject to equality constraints.
+        b : np.array
+            (m, 1) vector defining the equality constraints.
+        basis : np.array
+            array of length `m` mapping columns in `A` to their indicies in the basic feasible solution (bfs).
         """
         self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
         self.m, self.n = A.shape
@@ -28,53 +32,114 @@ class PrimalNaiveSimplexSolver():
         self.counter = None
 
     def _get_reduced_costs(self):
+        """
+        Get the reduced cost vector ie the cost of `x_i` minus the cost of representing `x_i`
+        as a linear combination of the current basis.
+        """
         reduced_costs = self.c - self.c[self.basis] @ self.inv_basis_matrix @ self.A
         reduced_costs[self.basis] = 0  # avoid numerical errors
         return reduced_costs
     
     def _update_bfs(self):
+        """Update current basic feasible solution."""
         self.bfs = self.inv_basis_matrix @ self.b
     
     def _get_solver_return_values(self):
+        """Build return object from calling `self.solve`."""
         res = {"x": self.bfs, "basis": self.basis, "cost": self._calc_bfs_cost(), "iters": self.counter}
         return res
 
     def _calc_bfs_cost(self):
+        """calculate the cost/onjective value of the current basic feasible solution."""
         return np.dot(self.c[self.basis], self.bfs)
 
     def _update_inv_basis_matrix(self):
+        """Naively update inverse basis matrix by inverting subset of columns in `A`."""
         self.inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
 
-    def _update_basis(self, col_in_basis_to_leave_basis, col_in_A_to_enter_basis):
+    def _update_basis(self, col_in_basis_to_leave_basis: int, col_in_A_to_enter_basis: int):
+        """Update basis corresponding to current basic feasible solution.
+
+        Parameters
+        ----------
+        col_in_basis_to_leave_basis : int
+            Index of column in/wrt `basis` to leave `basis`.
+        col_in_A_to_enter_basis : int
+            Index of column in/wrt `A` to enter `basis`.
+        """
         self.basis[col_in_basis_to_leave_basis] = col_in_A_to_enter_basis
     
-    def _primal_get_search_direction(self, col_in_A_to_enter_basis):
-        search_direction = self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
-        if self._primal_check_for_unbnoundedness(search_direction):
+    def _primal_get_feasible_direction(self, col_in_A_to_enter_basis: int) -> np.array:
+        """Get feasible primal direction wrt non basic variable entering the basis.
+
+        Parameters
+        ----------
+        col_in_A_to_enter_basis : int
+            col_in_A_to_enter_basis : int
+                Index of column in/wrt `A` to enter `basis`.
+
+        Returns
+        -------
+        np.array
+            Feasible primal direction.
+
+        Raises
+        ------
+        ValueError
+            Value error if problem is unbounded. 
+        """
+        feasible_direction = self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
+        if self._primal_check_for_unbnoundedness(feasible_direction):
             # optimal cost is -inf -> problem is unbounded
-            raise ValueError("Problem is unbounded.") 
-        return search_direction
+            raise ValueError("Reduced cost vector has all non-positive entries. Rroblem is unbounded.") 
+        return feasible_direction
     
-    def _primal_get_col_in_A_to_enter_basis(self, reduced_costs):
+    def _primal_get_col_in_A_to_enter_basis(self, reduced_costs: np.array):
+        """Returns index of nonbasic variable in A to enter basis."""
         col_in_A_to_enter_basis = np.argmax(reduced_costs < 0)
         return col_in_A_to_enter_basis
     
-    def _primal_check_for_optimality(self, reduced_costs):
+    def _primal_check_for_optimality(self, reduced_costs) -> bool:
+        """Current basic feasible solution is optimal if reduced ccosts are all non negative."""
         bfs_is_optimal = (reduced_costs.min() >= 0)
         return bfs_is_optimal
     
-    def _primal_check_for_unbnoundedness(self, search_direction):
-        problem_is_unbounded = (search_direction.max() <= 0)
+    def _primal_check_for_unbnoundedness(self, feasible_direction: np.array) -> bool:
+        """Problem is unbounded if we can move infintely far in the feasible direction."""
+        problem_is_unbounded = (feasible_direction.max() <= 0)
         return problem_is_unbounded
     
-    def _primal_ratio_test(self, col_in_A_to_enter_basis):
-        # primal ratio test
-        search_direction = self._primal_get_search_direction(col_in_A_to_enter_basis)
-        thetas = primal_simplex_div(self.bfs, search_direction)
+    def _primal_ratio_test(self, col_in_A_to_enter_basis: int) -> int:
+        """Primal ratio test to see how far we can move in the feasible direction while maintaining primal feasibility.
+
+        Parameters
+        ----------
+        col_in_A_to_enter_basis : int
+            Index of column in/wrt `A` to enter `basis`.
+
+        Returns
+        -------
+        int
+            Index of column in/wrt `basis` to leave `basis`.
+        """
+        feasible_direction = self._primal_get_feasible_direction(col_in_A_to_enter_basis)
+        thetas = primal_simplex_div(self.bfs, feasible_direction)
         col_in_basis_to_leave_basis = np.argmin(thetas)
         return col_in_basis_to_leave_basis
 
     def solve(self, maxiters: int=100):
+        """Primal Simplex algorithm loop.
+
+        Parameters
+        ----------
+        maxiters : int, optional
+            maximum number of simplex steps, by default 100
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
         self.counter = 0
         while self.counter < maxiters:
             self.counter += 1
@@ -96,51 +161,44 @@ class PrimalNaiveSimplexSolver():
     
 
 class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
+    """Revised Primal Simplex algorithm that implements Bland's selection rule to avoid cycling.
+    Inherits from `PrimalNaiveSimplexSolver`.
     """
-        Revised Simplex algorithm that implements Bland's selection rule to avoid cycling. 
 
-        Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
-        Args:
-            c (np.array): 1, n vector cost vector. 
-            A (np.array): m by n matrix defining the linear combinations to be subject to equality constraints.
-            b (np.array): m by 1 vector defining the equalies constraints.
-            basis (np.array): array of length m mapping the columns of A to their indicies in the bfs 
-    """ 
+    def _calc_premultiplication_inv_basis_update_matrix(self, col_in_A_to_enter_basis, col_in_basis_to_leave_basis) -> np.array:
+        """Calculate matrix to premultiply `self.inv_basis_matrix` by corresponding to a basis change.
 
-    def _calc_premultiplication_inv_basis_update_matrix(self, col_in_A_to_enter_basis, col_in_basis_to_leave_basis):
-        search_direction = self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
+        Parameters
+        ----------
+        col_in_A_to_enter_basis : _type_
+            Index of column in/wrt `A` to enter `basis`.
+        col_in_basis_to_leave_basis : _type_
+            Index of column in/wrt `basis` to leave `basis`.            
+
+        Returns
+        -------
+        np.array
+            premultiplication matrix
+        """
+        feasible_direction = self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
         premult_inv_basis_update_matrix = np.eye(self.m)
-        premult_inv_basis_update_matrix[:, col_in_basis_to_leave_basis] = -search_direction
+        premult_inv_basis_update_matrix[:, col_in_basis_to_leave_basis] = -feasible_direction
         premult_inv_basis_update_matrix[col_in_basis_to_leave_basis, col_in_basis_to_leave_basis] = 1
-        premult_inv_basis_update_matrix[:, col_in_basis_to_leave_basis] /= search_direction[col_in_basis_to_leave_basis]
+        premult_inv_basis_update_matrix[:, col_in_basis_to_leave_basis] /= feasible_direction[col_in_basis_to_leave_basis]
         return premult_inv_basis_update_matrix
 
     def _update_of_inv_basis_matrix(self, premult_inv_basis_update_matrix):      
-        # override `_update_of_inv_basis_matrix` from PrimalNaiveSimplexSolver
+        """Override `_update_of_inv_basis_matrix` from `PrimalNaiveSimplexSolver`."""
         self.inv_basis_matrix = premult_inv_basis_update_matrix @ self.inv_basis_matrix
 
     def _update_update_bfs(self, premult_inv_basis_update_matrix):
-        # override `_update_update_bfs` from PrimalNaiveSimplexSolver
+        """Override `_update_update_bfs` from `PrimalNaiveSimplexSolver`."""
         self.bfs = premult_inv_basis_update_matrix @ self.bfs
 
- 
     def solve(self, maxiters: int=100):
+        """Override `solve` from `PrimalNaiveSimplexSolver`."""
         self.counter = 0
         while self.counter < maxiters:
-            self.counter += 1
-
-            # # generate reduced costs one at a time taking first improvement as entering col
-            # for j in range(self.n):
-            #     if j in self.basis:
-            #         continue
-            #     reduced_cost = self.c[j] - self.c[self.basis] @ self.inv_basis_matrix @ self.A[:, j]
-            #     if reduced_cost < 0:
-            #        col_in_A_to_enter_basis = j
-            #        break
-            # else:
-            #     # optimal solution found -> break
-            #     break
-
             self.counter += 1
 
             reduced_costs = self._get_reduced_costs()
@@ -161,22 +219,38 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
     
 
 class PrimalTableauSimplexSolver():
+    """Tableau implementation of Primal Simplex Algorithm.
     """
-        Tableau based Simplex algorithm.  
-    """
-    def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array) -> None:
-        """
-        Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
+    def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array):
+        """_summary_
 
-        Args:
-            c (np.array): 1, n vector cost vector. 
-            A (np.array): m by n matrix defining the linear combinations to be subject to equality constraints.
-            b (np.array): m by 1 vector defining the equalies constraints.
-            basis (np.array): array of length m mapping the columns of A to their indicies in the bfs 
+        Parameters
+        ----------
+        c : np.array
+            (1, n) cost vector
+        A : np.array
+            (m, n) matirx defining linear combinations subject to equality constraints.
+        b : np.array
+            (m, 1) vector defining the equality constraints.
+        basis : np.array
+            array of length `m` mapping columns in `A` to their indicies in the basic feasible solution (bfs).
         """
+        
         self.tableau = Tableau(c, A, b, basis)  
     
     def solve(self, maxiters=100):
+        """Primal Simplex algorithm loop.
+
+        Parameters
+        ----------
+        maxiters : int, optional
+            maximum number of simplex steps, by default 100
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
         self.counter = 0
         while self.counter < maxiters:
             self.counter += 1
@@ -189,12 +263,12 @@ class PrimalTableauSimplexSolver():
 
             if self.tableau.tableau[1:, pivot_col].max() <= 0:  # check to make sure search direction has at least one positive entry
                 # optimal cost is -inf -> problem is unbounded
-                raise ValueError("reduced cost vector has all non-positive entries. problem is unbounded.")
+                raise ValueError("Reduced cost vector has all non-positive entries. Rroblem is unbounded.")
 
             pivot_row = np.argmin(
                 primal_simplex_div(
                         self.tableau.tableau[1:, 0], 
-                        self.tableau.tableau[1:, pivot_col]  # search direction
+                        self.tableau.tableau[1:, pivot_col]  # feasible direction
                 )
         
             ) \
