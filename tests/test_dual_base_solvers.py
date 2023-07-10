@@ -1,6 +1,7 @@
 import numpy as np
-from linprog.dual_simplex_solvers import *
 import pytest
+
+from linprog.dual_simplex_solvers import *
 from tests.problems import *
 
 TOL = 1e-2
@@ -12,5 +13,6 @@ SOLVERS = [DualNaiveSimplexSolver, DualRevisedSimplexSolver, DualTableauSimplexS
 def test_base_simplex_solver_for_correct_soln(problem, solver):
     solver = solver(problem.c, problem.A, problem.b, problem.starting_basis)
     res = solver.solve()
-    assert np.linalg.norm(res["x"] - problem.optimal_bfs, 2) < TOL and np.array_equal(res["basis"], problem.optimal_basis)
-
+    assert np.linalg.norm(res["x"] - problem.optimal_bfs, 2) < TOL and np.array_equal(
+        res["basis"], problem.optimal_basis
+    )

@@ -1,6 +1,7 @@
 import numpy as np
-from linprog.primal_dual_alogrithm import *
 import pytest
+
+from linprog.primal_dual_alogrithm import *
 from tests.problems import PRIMAL_DUAL_SOLVER_PROBLEMS
 
 TOL = 1e-2

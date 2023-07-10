@@ -1,6 +1,7 @@
 import numpy as np
-from linprog.general_solvers import *
 import pytest
+
+from linprog.general_solvers import *
 from tests.problems import PRIMAL_BASE_SOLVER_PROBLEMS
 
 TOL = 1e-2
