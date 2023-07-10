@@ -134,7 +134,7 @@ class DualRevisedSimplexSolver(DualNaiveSimplexSolver, PrimalRevisedSimplexSolve
 class DualTableauSimplexSolver():
     """Tableau implementation of Dual Simplex Algorithm."""
     def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array) -> None:
-        """init
+        """Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
 
         Parameters
         ----------

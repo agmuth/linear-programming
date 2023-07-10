@@ -221,7 +221,7 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
 class PrimalTableauSimplexSolver():
     """Tableau implementation of Primal Simplex Algorithm."""
     def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array):
-        """init
+        """Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
 
         Parameters
         ----------
