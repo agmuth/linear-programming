@@ -3,7 +3,7 @@ from math import factorial
 import numpy as np
 
 from linprog.primal_simplex_solvers import *
-from linprog.utils import primal_simplex_div
+from linprog.utils import primal_simplex_div, get_bounds_on_bfs
 
 
 class PrimalDualAlgorithm:
@@ -38,10 +38,7 @@ class PrimalDualAlgorithm:
         expanded_dual_to_get_initial_bfs = False
         if self.c.min() < 0:
             expanded_dual_to_get_initial_bfs = True
-            # lemma 2.1 combinatorial optimization - algorithms and complexity
-            alpha = np.abs(self.A).max()
-            beta = np.abs(self.b).max()
-            M = factorial(self.m) * alpha ** (self.m - 1) * beta
+            M = get_bounds_on_bfs(self.A, self.b)
             # pg. 105 combinatorial optimization - algorithms and complexity
             self.c = np.hstack([self.c, np.zeros(1)])
             self.A = np.vstack(
