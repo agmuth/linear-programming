@@ -96,6 +96,7 @@ class DualNaiveSimplexSolver(PrimalNaiveSimplexSolver):
 
             if self._dual_check_for_optimality():
                 # optimal solution found break
+                self.optimum = True
                 break
 
             col_in_basis_to_leave_basis = self._dual_get_col_in_basis_to_leave_basis()
@@ -104,7 +105,7 @@ class DualNaiveSimplexSolver(PrimalNaiveSimplexSolver):
             self._update_inv_basis_matrix()
             self._update_bfs()
 
-        return self._get_solver_return_values()
+        return self._get_solver_return_object()
 
 
 class DualRevisedSimplexSolver(DualNaiveSimplexSolver, PrimalRevisedSimplexSolver):
@@ -120,6 +121,7 @@ class DualRevisedSimplexSolver(DualNaiveSimplexSolver, PrimalRevisedSimplexSolve
 
             if self._dual_check_for_optimality():
                 # optimal solution found break
+                self.optimum = True
                 break
 
             col_in_basis_to_leave_basis = self._dual_get_col_in_basis_to_leave_basis()
@@ -142,9 +144,9 @@ class DualRevisedSimplexSolver(DualNaiveSimplexSolver, PrimalRevisedSimplexSolve
             )
             self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
             self._update_of_inv_basis_matrix(premultiplication_inv_basis_update_matrix)
-            self._update_update_bfs(premultiplication_inv_basis_update_matrix)
+            self._update_bfs(premultiplication_inv_basis_update_matrix)
 
-        return self._get_solver_return_values()
+        return self._get_solver_return_object()
 
 
 class DualTableauSimplexSolver:
@@ -180,6 +182,7 @@ class DualTableauSimplexSolver:
             _description_
         """
         self.counter = 0
+        self.optimum = False
         while self.counter < maxiters:
             self.counter += 1
             self.tableau.tableau[0, 1:][
@@ -188,6 +191,7 @@ class DualTableauSimplexSolver:
             if (
                 self.tableau.tableau[1:, 0].min() >= 0
             ):  # check for termination condition
+                self.optimum = True
                 break
 
             pivot_row = np.argmax(self.tableau.tableau[1:, 0] < 0) + 1
@@ -219,9 +223,12 @@ class DualTableauSimplexSolver:
 
         self.basis = self.tableau.basis
         self.bfs = self.tableau.tableau[1:, 0]
-        return {
-            "x": self.bfs,
-            "basis": self.basis,
-            "cost": self.tableau.tableau[0, 0],
-            "iters": self.counter,
-        }
+        x_soln = np.zeros(self.tableau.n)
+        x_soln[self.basis] = self.bfs
+        return LinProgResult(
+            x=x_soln,
+            basis=self.basis,
+            cost=self.tableau.tableau[0, 0],
+            iters=self.counter,
+            optimum=self.optimum,
+        )

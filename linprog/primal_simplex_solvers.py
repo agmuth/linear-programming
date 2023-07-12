@@ -159,13 +159,14 @@ class PrimalNaiveSimplexSolver:
             _description_
         """
         self.counter = 0
-        self.optimum = True
+        self.optimum = False
         while self.counter < maxiters:
             self.counter += 1
 
             reduced_costs = self._get_reduced_costs()
             if self._primal_check_for_optimality(reduced_costs):
                 # optimal solution found break
+                self.optimum = True
                 break
 
             col_in_A_to_enter_basis = self._primal_get_col_in_A_to_enter_basis(
@@ -178,8 +179,7 @@ class PrimalNaiveSimplexSolver:
             self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
             self._update_inv_basis_matrix()
             self._update_bfs()
-        else:
-            self.optimum = False
+        
 
         return self._get_solver_return_object()
 
@@ -230,13 +230,14 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
     def solve(self, maxiters: int = 100):
         """Override `solve` from `PrimalNaiveSimplexSolver`."""
         self.counter = 0
-        self.optimum = True
+        self.optimum = False
         while self.counter < maxiters:
             self.counter += 1
 
             reduced_costs = self._get_reduced_costs()
             if self._primal_check_for_optimality(reduced_costs):
                 # optimal solution found break
+                self.optimum = True
                 break
 
             col_in_A_to_enter_basis = self._primal_get_col_in_A_to_enter_basis(
@@ -255,8 +256,6 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
             self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
             self._update_of_inv_basis_matrix(premult_inv_basis_update_matrix)
             self._update_bfs(premult_inv_basis_update_matrix)
-        else:
-            self.optimum = False
             
         return self._get_solver_return_object()
 
@@ -295,7 +294,7 @@ class PrimalTableauSimplexSolver:
             _description_
         """
         self.counter = 0
-        self.optimum = True
+        self.optimum = False
         while self.counter < maxiters:
             self.counter += 1
             self.tableau.tableau[0, 1:][
@@ -303,6 +302,7 @@ class PrimalTableauSimplexSolver:
             ] = 0  # avoid numerical errors
             if self.tableau.tableau[0, 1:].min() >= 0:  # 0^th row is reduced costs
                 # optimal solution found break
+                self.optimum = True
                 break
 
             pivot_col = np.argmax(self.tableau.tableau[0, 1:] < 0) + 1
@@ -326,8 +326,6 @@ class PrimalTableauSimplexSolver:
             )  # bland's rule
 
             self.tableau.pivot(pivot_row, pivot_col)
-        else:
-            self.optimum = False
 
         self.basis = self.tableau.basis
         self.bfs = self.tableau.tableau[1:, 0]
@@ -438,13 +436,14 @@ class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
     def solve(self, maxiters: int = 100):
         """Override `solve` from `PrimalRevisedSimplexSolver`."""
         self.counter = 0
-        self.optimum = True
+        self.optimum = False
         while self.counter < maxiters:
             self.counter += 1
             
             reduced_costs = self._get_reduced_costs()
             if self._primal_check_for_optimality(reduced_costs):
                 # optimal solution found break
+                self.optimum = True
                 break
 
             col_in_A_to_enter_basis = self._primal_get_col_in_A_to_enter_basis(
@@ -520,8 +519,6 @@ class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
             else:
                 raise ValueError("Column to enter basis is not nonbasic.")
             self._update_bfs()
-        else:
-            self.optimum = False
 
         return self._get_solver_return_object()
     

@@ -15,15 +15,16 @@ class PrimalDualAlgorithm:
         Parameters
         ----------
         c : np.array
-            (1, n) cost vector
+            (n,) cost vector
         A : np.array
             (m, n) matirx defining linear combinations subject to equality constraints.
         b : np.array
-            (m, 1) vector defining the equality constraints.
+            (m,) vector defining the equality constraints.
         """
         self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
         self.m, self.n = A.shape
         self.counter = 0
+        self.optimum=False
 
     def solve(self):
         """Loop implementeing primal-dual algorithm.
