@@ -48,8 +48,7 @@ class DualNaiveSimplexSolver(PrimalNaiveSimplexSolver):
 
     def _dual_check_for_optimality(self) -> bool:
         """Solution to the dual problem is optimal if it also satisfies primal problem."""
-        bfs_is_optimal = self.bfs.min() >= 0
-        return bfs_is_optimal
+        return (self.bfs.min() >= 0) or np.isclose(self.bfs.min(), 0)
 
     def _dual_check_for_unbnoundedness(self, feasible_direction: np.array) -> bool:
         """Problem is unbounded if we can move infintely far in the feasible direction."""
@@ -143,7 +142,7 @@ class DualRevisedSimplexSolver(DualNaiveSimplexSolver, PrimalRevisedSimplexSolve
                 )
             )
             self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
-            self._update_of_inv_basis_matrix(premultiplication_inv_basis_update_matrix)
+            self._update_inv_basis_matrix(premultiplication_inv_basis_update_matrix)
             self._update_bfs(premultiplication_inv_basis_update_matrix)
 
         return self._get_solver_return_object()
@@ -189,7 +188,8 @@ class DualTableauSimplexSolver:
                 self.tableau.basis
             ] = 0  # avoid numerical errors
             if (
-                self.tableau.tableau[1:, 0].min() >= 0
+                (self.tableau.tableau[1:, 0].min() >= 0)
+                or np.isclose(self.tableau.tableau[1:, 0].min(), 0)
             ):  # check for termination condition
                 self.optimum = True
                 break

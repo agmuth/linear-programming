@@ -121,8 +121,7 @@ class PrimalNaiveSimplexSolver:
 
     def _primal_check_for_optimality(self, reduced_costs) -> bool:
         """Current basic feasible solution is optimal if reduced ccosts are all non negative."""
-        bfs_is_optimal = reduced_costs.min() >= 0
-        return bfs_is_optimal
+        return (reduced_costs.min() >= 0) or np.isclose(reduced_costs.min(), 0)
 
     def _primal_check_for_unbnoundedness(self, feasible_direction: np.array) -> bool:
         """Problem is unbounded if we can move infintely far in the feasible direction."""
@@ -222,8 +221,8 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
         ] /= feasible_direction[col_in_basis_to_leave_basis]
         return premult_inv_basis_update_matrix
 
-    def _update_of_inv_basis_matrix(self, premult_inv_basis_update_matrix):
-        """Override `_update_of_inv_basis_matrix` from `PrimalNaiveSimplexSolver`."""
+    def _update_inv_basis_matrix(self, premult_inv_basis_update_matrix):
+        """Override `_update_inv_basis_matrix` from `PrimalNaiveSimplexSolver`."""
         self.inv_basis_matrix = premult_inv_basis_update_matrix @ self.inv_basis_matrix
 
     def _update_bfs(self, premult_inv_basis_update_matrix):
@@ -257,7 +256,7 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
             )
 
             self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
-            self._update_of_inv_basis_matrix(premult_inv_basis_update_matrix)
+            self._update_inv_basis_matrix(premult_inv_basis_update_matrix)
             self._update_bfs(premult_inv_basis_update_matrix)
 
         return self._get_solver_return_object()
@@ -303,7 +302,10 @@ class PrimalTableauSimplexSolver:
             self.tableau.tableau[0, 1:][
                 self.tableau.basis
             ] = 0  # avoid numerical errors
-            if self.tableau.tableau[0, 1:].min() >= 0:  # 0^th row is reduced costs
+            if (
+                (self.tableau.tableau[0, 1:].min() >= 0) or 
+                np.isclose(self.tableau.tableau[0, 1:].min(), 0)
+            ):  # 0^th row is reduced costs
                 # optimal solution found break
                 self.optimum = True
                 break
@@ -343,7 +345,7 @@ class PrimalTableauSimplexSolver:
         )
 
 
-class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
+class BoundedVariablePrimalSimplexSolver(PrimalRevisedSimplexSolver):
     def __init__(
         self,
         c: np.array,
@@ -452,25 +454,18 @@ class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
 
     def _get_bfs_expanded(self):
         x = np.zeros(self.c.shape)
-        x[self.basis] += self.bfs[0]
+        x[self.basis] += self.bfs
         x[self.lb_nonbasic_vars] += self.lb[self.lb_nonbasic_vars].T
         x[self.ub_nonbasic_vars] += self.ub[self.ub_nonbasic_vars].T
         return x
 
-    def _get_cost(self):
-        return self._get_bfs_expanded() @ self.c.T
-
     def _primal_get_col_in_A_to_enter_basis(self, reduced_costs: np.array):
-        # TODO: can maybe move *= -1 op to solve and avoid overwriting this
         """Returns index of nonbasic variable in A to enter basis."""
-        # reduced_costs[self.ub_nonbasic_vars] *= -1 done above
-        # col_in_A_to_enter_basis = np.argmax(reduced_costs > 0)
         col_in_A_to_enter_basis = np.argmax(reduced_costs)  # just for testing
         return col_in_A_to_enter_basis
 
     def _primal_check_for_optimality(self, reduced_costs: np.array):
-        # reduced_costs[self.ub_nonbasic_vars] *= -1 done above
-        return reduced_costs.max() <= 0
+        return (reduced_costs.max() <= 0) or np.isclose(reduced_costs.max(), 0)
 
     def solve(self, maxiters: int = 100):
         """Override `solve` from `PrimalRevisedSimplexSolver`."""
@@ -535,11 +530,6 @@ class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
                                 self.ub_nonbasic_vars,
                                 self.basis[col_in_basis_to_leave_basis],
                             )
-                        self._update_basis(
-                            col_in_basis_to_leave_basis, col_in_A_to_enter_basis
-                        )  # update basis
-                        self._update_inv_basis_matrix()  # update inv basis matrix
-
             elif col_in_A_to_enter_basis in self.ub_nonbasic_vars:
                 # case 2: col_in_A_to_enter_basis is in self.ub_nonbasic_vars -> must decrease col_in_A_to_enter_basis
                 # case 2a: some basic variable drops to its lower bound
@@ -585,12 +575,17 @@ class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
                                 self.ub_nonbasic_vars,
                                 self.basis[col_in_basis_to_leave_basis],
                             )
-                        self._update_basis(
-                            col_in_basis_to_leave_basis, col_in_A_to_enter_basis
-                        )  # update basis
-                        self._update_inv_basis_matrix()  # update inv basis matrix
             else:
                 raise ValueError("Column to enter basis is not nonbasic.")
+            
+            
+            self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
+            premult_inv_basis_update_matrix = (
+                self._calc_premultiplication_inv_basis_update_matrix(
+                    col_in_A_to_enter_basis, col_in_basis_to_leave_basis
+                )
+            )
+            self._update_inv_basis_matrix(premult_inv_basis_update_matrix)
             self._update_bfs()
 
         return self._get_solver_return_object()
@@ -617,4 +612,5 @@ if __name__ == "__main__":
         ub_nonbasic_vars,
     )
 
-    solver.solve()
+    res = solver.solve()
+    res
