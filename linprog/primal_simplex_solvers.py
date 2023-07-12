@@ -587,28 +587,3 @@ class BoundedVariablePrimalSimplexSolver(PrimalRevisedSimplexSolver):
             self._update_bfs()
 
         return self._get_solver_return_object()
-
-
-if __name__ == "__main__":
-    c = np.array([-2, -4, -1, 0, 0])
-    b = np.array([10, 4])
-    A = np.array([[2, 1, 1, 1, 0], [1, 1, -1, -0, 1]])
-    lb = np.array([0, 0, 1, 0, 0])
-    ub = np.array([4, 6, 4, np.inf, np.inf])
-    basis = np.array([3, 4])
-    lb_nonbasic_vars = np.array([0, 1, 2])
-    ub_nonbasic_vars = np.array([])
-
-    solver = BoundedVariablePrimalSimplexSolver(
-        c,
-        A,
-        b,
-        lb,
-        ub,
-        basis,
-        lb_nonbasic_vars,
-        ub_nonbasic_vars,
-    )
-
-    res = solver.solve()
-    res
