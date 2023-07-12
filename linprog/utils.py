@@ -1,6 +1,7 @@
-import numpy as np
-from math import factorial
 from dataclasses import dataclass
+from math import factorial
+
+import numpy as np
 
 primal_simplex_div = np.vectorize(
     # Special division option used in primal algorithm.
@@ -16,10 +17,11 @@ dual_simplex_div = np.vectorize(
     else np.inf
 )
 
+
 def get_bounds_on_bfs(A: np.array, b: np.array) -> float:
     """Get bounds on magnitude of x_i in all bfs.
     ref: lemma 2.1 combinatorial optimization - algorithms and complexity
-    
+
     Parameters
     ----------
     A : np.array
@@ -35,13 +37,14 @@ def get_bounds_on_bfs(A: np.array, b: np.array) -> float:
     m = A.shape[0]
     alpha = np.abs(A).max()
     beta = np.abs(b).max()
-    M = factorial(m) * alpha ** (m-1) * beta
+    M = factorial(m) * alpha ** (m - 1) * beta
     return M
 
+
 @dataclass
-class LinProgResult():
+class LinProgResult:
     x: np.array
     basis: np.array
     cost: float
-    iters: int 
+    iters: int
     optimum: bool

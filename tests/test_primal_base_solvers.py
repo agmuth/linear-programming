@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 
 from linprog.primal_simplex_solvers import *
-from tests.problems import *
 from tests.constants import TOL
+from tests.problems import *
 
 SOLVERS = [
     PrimalNaiveSimplexSolver,
@@ -17,10 +17,9 @@ SOLVERS = [
 def test_base_simplex_solver_for_correct_soln(problem, solver):
     solver = solver(problem.c, problem.A, problem.b, problem.starting_basis)
     res = solver.solve()
-    assert (
-        np.linalg.norm(res.x[res.basis] - problem.optimal_bfs, 2) < TOL 
-        and np.array_equal(res.basis, problem.optimal_basis)
-    )
+    assert np.linalg.norm(
+        res.x[res.basis] - problem.optimal_bfs, 2
+    ) < TOL and np.array_equal(res.basis, problem.optimal_basis)
 
 
 @pytest.mark.parametrize("problem", PRIMAL_BASE_SOLVER_BLANDS_SEQUENCE_PROBLEMS)
@@ -34,10 +33,3 @@ def test_base_simplex_solver_for_blands_seq(problem, solver):
     res = solver.solve(maxiters=1)  # check to make sure algorithm has terminated
     path.append(np.array_equal(problem.basis_seq[-1], res.basis))
     assert all(path)
-
-
-if __name__ == "__main__":
-    test_base_simplex_solver_for_correct_soln(
-        PRIMAL_BASE_SOLVER_PROBLEMS[1],
-        SOLVERS[0]
-    )

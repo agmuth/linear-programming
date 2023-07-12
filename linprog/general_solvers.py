@@ -82,5 +82,3 @@ class TwoPhaseSimplexSolver:
         )
 
         return self.tableau.solve(maxiters)
-
-

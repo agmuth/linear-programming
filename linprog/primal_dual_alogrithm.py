@@ -1,9 +1,8 @@
-from math import factorial
 
 import numpy as np
 
 from linprog.primal_simplex_solvers import *
-from linprog.utils import primal_simplex_div, get_bounds_on_bfs, LinProgResult
+from linprog.utils import LinProgResult, get_bounds_on_bfs, primal_simplex_div
 
 
 class PrimalDualAlgorithm:
@@ -24,11 +23,11 @@ class PrimalDualAlgorithm:
         self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
         self.m, self.n = A.shape
         self.counter = 0
-        self.optimum=False
+        self.optimum = False
 
-    def solve(self, maxiters1: int=100, maxiters2: int=100):
+    def solve(self, maxiters1: int = 100, maxiters2: int = 100):
         """Loop implementeing primal-dual algorithm.
-        
+
         Parameters
         ----------
         maxiters1 : int, optional
@@ -100,7 +99,6 @@ class PrimalDualAlgorithm:
             else:
                 self.optimum = True
                 break  # complementary slackness attained
-                
 
         bfs_restricted_primal = np.zeros(2 * admissiable_set.sum())
         bfs_restricted_primal[res_restricted_primal.basis] += res_restricted_primal.x[
@@ -130,7 +128,7 @@ class PrimalDualAlgorithm:
             basis=basis_unrestricted_primal,
             cost=cost_unrestricted_primal,
             iters=self.counter,
-            optimum=self.optimum
+            optimum=self.optimum,
         )
 
         return res
