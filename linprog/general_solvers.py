@@ -13,9 +13,9 @@ class TwoPhaseSimplexSolver:
         Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
 
         Args:
-            c (np.array): 1, n vector cost vector.
+            c (np.array): length n vector cost vector.
             A (np.array): m by n matrix defining the linear combinations to be subject to equality constraints.
-            b (np.array): m by 1 vector defining the equalies constraints.
+            b (np.array): length m vector defining the equalies constraints.
         """
         self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
         self.m, self.n = A.shape
@@ -24,7 +24,7 @@ class TwoPhaseSimplexSolver:
         self.artificial_tableau = None
         self.tableau = None
 
-    def drive_artificial_variables_out_of_basis(self, maxiters=100):
+    def _drive_artificial_variables_out_of_basis(self, maxiters=100):
         # PHASE I --------------------------------------
         self.artificial_tableau = PrimalTableauSimplexSolver(
             c=np.hstack([np.zeros(self.n), np.ones(self.m)]),
@@ -72,7 +72,7 @@ class TwoPhaseSimplexSolver:
                     self.artificial_tableau.tableau.pivot(i, pivot_col)
 
     def solve(self, maxiters=100):
-        self.drive_artificial_variables_out_of_basis(maxiters)
+        self._drive_artificial_variables_out_of_basis(maxiters)
         # PHASE II --------------------------------------
         self.tableau = PrimalTableauSimplexSolver(
             c=self.c,
@@ -81,11 +81,6 @@ class TwoPhaseSimplexSolver:
             basis=self.artificial_tableau.basis,
         )
 
-        res = self.tableau.solve(maxiters)
-        self.basis = self.tableau.basis
-        self.bfs = self.tableau.bfs
-        return res
+        return self.tableau.solve(maxiters)
 
 
-if __name__ == "__main__":
-    pass
