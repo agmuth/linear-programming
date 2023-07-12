@@ -1,4 +1,3 @@
-
 import numpy as np
 
 from linprog.primal_simplex_solvers import *

@@ -187,9 +187,8 @@ class DualTableauSimplexSolver:
             self.tableau.tableau[0, 1:][
                 self.tableau.basis
             ] = 0  # avoid numerical errors
-            if (
-                (self.tableau.tableau[1:, 0].min() >= 0)
-                or np.isclose(self.tableau.tableau[1:, 0].min(), 0)
+            if (self.tableau.tableau[1:, 0].min() >= 0) or np.isclose(
+                self.tableau.tableau[1:, 0].min(), 0
             ):  # check for termination condition
                 self.optimum = True
                 break

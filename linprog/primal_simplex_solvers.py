@@ -302,9 +302,8 @@ class PrimalTableauSimplexSolver:
             self.tableau.tableau[0, 1:][
                 self.tableau.basis
             ] = 0  # avoid numerical errors
-            if (
-                (self.tableau.tableau[0, 1:].min() >= 0) or 
-                np.isclose(self.tableau.tableau[0, 1:].min(), 0)
+            if (self.tableau.tableau[0, 1:].min() >= 0) or np.isclose(
+                self.tableau.tableau[0, 1:].min(), 0
             ):  # 0^th row is reduced costs
                 # optimal solution found break
                 self.optimum = True
@@ -577,8 +576,7 @@ class BoundedVariablePrimalSimplexSolver(PrimalRevisedSimplexSolver):
                             )
             else:
                 raise ValueError("Column to enter basis is not nonbasic.")
-            
-            
+
             self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
             premult_inv_basis_update_matrix = (
                 self._calc_premultiplication_inv_basis_update_matrix(
