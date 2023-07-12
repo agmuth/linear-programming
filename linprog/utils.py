@@ -1,5 +1,6 @@
 import numpy as np
 from math import factorial
+from dataclasses import dataclass
 
 primal_simplex_div = np.vectorize(
     # Special division option used in primal algorithm.
@@ -36,3 +37,11 @@ def get_bounds_on_bfs(A: np.array, b: np.array) -> float:
     beta = np.abs(b).max()
     M = factorial(m) * alpha ** (m-1) * beta
     return M
+
+@dataclass
+class LinProgResult():
+    x: np.array
+    basis: np.array
+    cost: float
+    iters: int 
+    optimum: bool

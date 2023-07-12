@@ -10,11 +10,11 @@ class Tableau:
         Parameters
         ----------
         c : np.array
-            (1, n) cost vector
+            (n,) cost vector
         A : np.array
             (m, n) matirx defining linear combinations subject to equality constraints.
         b : np.array
-            (m, 1) vector defining the equality constraints.
+            (m,) vector defining the equality constraints.
         basis : np.array
             array of length `m` mapping columns in `A` to their indicies in the basic feasible solution (bfs).
         """

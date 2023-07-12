@@ -13,23 +13,24 @@ class PrimalNaiveSimplexSolver:
         Parameters
         ----------
         c : np.array
-            (1, n) cost vector
+            (n,) cost vector
         A : np.array
             (m, n) matirx defining linear combinations subject to equality constraints.
         b : np.array
-            (m, 1) vector defining the equality constraints.
+            (m,) vector defining the equality constraints.
         basis : np.array
             array of length `m` mapping columns in `A` to their indicies in the basic feasible solution (bfs).
         """
-        self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
+        self.c, self.A, self.b = np.array(c.flatten()), np.array(A), np.array(b.flatten())
         self.m, self.n = A.shape
         self.row_offset = 1
         self.col_offset = 1
-        self.basis = np.array(basis)
+        self.basis = np.array(basis).astype(int)
         # need to set these here instead of calling `_update` mthods for inheritence
         self.inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
         self.bfs = self.inv_basis_matrix @ self.b
         self.counter = None
+        self.optimum = None
 
     def _get_reduced_costs(self):
         """
@@ -44,19 +45,25 @@ class PrimalNaiveSimplexSolver:
         """Update current basic feasible solution."""
         self.bfs = self.inv_basis_matrix @ self.b
 
-    def _get_solver_return_values(self):
-        """Build return object from calling `self.solve`."""
-        res = {
-            "x": self.bfs,
-            "basis": self.basis,
-            "cost": self._calc_bfs_cost(),
-            "iters": self.counter,
-        }
-        return res
-
-    def _calc_bfs_cost(self):
+    def _get_bfs_expanded(self):
+        x = np.zeros(self.n)
+        x[self.basis] = self.bfs
+        return x
+    
+    def _calc_current_cost(self):
         """calculate the cost/onjective value of the current basic feasible solution."""
-        return np.dot(self.c[self.basis], self.bfs)
+        return np.dot(self.c, self._get_bfs_expanded())
+
+    def _get_solver_return_object(self):
+        """Build return object from calling `self.solve`."""
+        res = LinProgResult(
+            x=self._get_bfs_expanded(),
+            basis=self.basis,
+            cost=self._calc_current_cost(),
+            iters=self.counter,
+            optimum=self.optimum
+        )
+        return res
 
     def _update_inv_basis_matrix(self):
         """Naively update inverse basis matrix by inverting subset of columns in `A`."""
@@ -152,6 +159,7 @@ class PrimalNaiveSimplexSolver:
             _description_
         """
         self.counter = 0
+        self.optimum = True
         while self.counter < maxiters:
             self.counter += 1
 
@@ -170,8 +178,10 @@ class PrimalNaiveSimplexSolver:
             self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
             self._update_inv_basis_matrix()
             self._update_bfs()
+        else:
+            self.optimum = False
 
-        return self._get_solver_return_values()
+        return self._get_solver_return_object()
 
 
 class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
@@ -209,18 +219,18 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
         ] /= feasible_direction[col_in_basis_to_leave_basis]
         return premult_inv_basis_update_matrix
 
-
     def _update_of_inv_basis_matrix(self, premult_inv_basis_update_matrix):
         """Override `_update_of_inv_basis_matrix` from `PrimalNaiveSimplexSolver`."""
         self.inv_basis_matrix = premult_inv_basis_update_matrix @ self.inv_basis_matrix
 
-    def _update_update_bfs(self, premult_inv_basis_update_matrix):
-        """Override `_update_update_bfs` from `PrimalNaiveSimplexSolver`."""
+    def _update_bfs(self, premult_inv_basis_update_matrix):
+        """Override `_update_bfs` from `PrimalNaiveSimplexSolver`."""
         self.bfs = premult_inv_basis_update_matrix @ self.bfs
 
     def solve(self, maxiters: int = 100):
         """Override `solve` from `PrimalNaiveSimplexSolver`."""
         self.counter = 0
+        self.optimum = True
         while self.counter < maxiters:
             self.counter += 1
 
@@ -244,9 +254,11 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
 
             self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
             self._update_of_inv_basis_matrix(premult_inv_basis_update_matrix)
-            self._update_update_bfs(premult_inv_basis_update_matrix)
-
-        return self._get_solver_return_values()
+            self._update_bfs(premult_inv_basis_update_matrix)
+        else:
+            self.optimum = False
+            
+        return self._get_solver_return_object()
 
 
 class PrimalTableauSimplexSolver:
@@ -258,11 +270,11 @@ class PrimalTableauSimplexSolver:
         Parameters
         ----------
         c : np.array
-            (1, n) cost vector
+            (n, ) cost vector
         A : np.array
             (m, n) matirx defining linear combinations subject to equality constraints.
         b : np.array
-            (m, 1) vector defining the equality constraints.
+            (m,) vector defining the equality constraints.
         basis : np.array
             array of length `m` mapping columns in `A` to their indicies in the basic feasible solution (bfs).
         """
@@ -283,6 +295,7 @@ class PrimalTableauSimplexSolver:
             _description_
         """
         self.counter = 0
+        self.optimum = True
         while self.counter < maxiters:
             self.counter += 1
             self.tableau.tableau[0, 1:][
@@ -313,15 +326,20 @@ class PrimalTableauSimplexSolver:
             )  # bland's rule
 
             self.tableau.pivot(pivot_row, pivot_col)
+        else:
+            self.optimum = False
 
         self.basis = self.tableau.basis
         self.bfs = self.tableau.tableau[1:, 0]
-        return {
-            "x": self.bfs,
-            "basis": self.basis,
-            "cost": self.tableau.tableau[0, 0],
-            "iters": self.counter,
-        }
+        x_soln = np.zeros(self.tableau.n)
+        x_soln[self.basis] = self.bfs
+        return LinProgResult(
+            x=x_soln,
+            basis=self.basis,
+            cost=self.tableau.tableau[0, 0],
+            iters=self.counter,
+            optimum=self.optimum,
+        )
 
 
 class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
@@ -331,15 +349,15 @@ class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
         Parameters
         ----------
         c : np.array
-            (1, n) cost vector
+            (n,) cost vector
         A : np.array
             (m, n) matrix defining linear combinations subject to equality constraints.
         b : np.array
-            (m, 1) vector defining the equality constraints.
+            (m,) vector defining the equality constraints.
         lb : np.array
-            (n, 1) vector specifying lower bounds on x. -np.inf indicates variable is unbounded below.
+            (n,) vector specifying lower bounds on x. -np.inf indicates variable is unbounded below.
         ub : np.array
-            (n, 1) vector specifying lower bounds on x. +np.inf indicates variable is unbounded above.
+            (n,) vector specifying lower bounds on x. +np.inf indicates variable is unbounded above.
         basis : np.array
             array of length `m` mapping columns in `A` to their indicies in the basic feasible solution (bfs).
         lb_nonbasic_vars : np.array
@@ -363,8 +381,9 @@ class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
         self.inv_basis_matrix = np.linalg.inv(self.A[:, self.basis])
         self._update_bfs()
         self.counter = None
+        self.optimum = None
         
-    def _calc_bfs_cost(self):
+    def _calc_current_cost(self):
         """calculate the cost/onjective value of the current basic feasible solution."""
         return (
             self.c[self.basis] @ self.inv_basis_matrix @ self.b
@@ -387,32 +406,18 @@ class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
         """
         reduced_costs = -1*np.array(self.c)
         # reduced_costs[self.basis] += self.c[self.basis] * self.bfs
-        reduced_costs[:, self.ub_nonbasic_vars] += self.c[:, self.basis] @ self.inv_basis_matrix @ self.A[:, self.ub_nonbasic_vars]
-        reduced_costs[:, self.ub_nonbasic_vars] *= -1 # we only ever use this multiplied by -1
-        reduced_costs[:, self.lb_nonbasic_vars] += self.c[:, self.basis] @ self.inv_basis_matrix @ self.A[:, self.lb_nonbasic_vars]
+        reduced_costs[self.ub_nonbasic_vars] += self.c[self.basis] @ self.inv_basis_matrix @ self.A[:, self.ub_nonbasic_vars]
+        reduced_costs[self.ub_nonbasic_vars] *= -1 # we only ever use this multiplied by -1
+        reduced_costs[self.lb_nonbasic_vars] += self.c[self.basis] @ self.inv_basis_matrix @ self.A[:, self.lb_nonbasic_vars]
         
-        reduced_costs[:, self.basis] = 0  # avoid numerical errors
-        return reduced_costs.flatten()
-    
-    def _get_solver_return_values(self):
-        """Build return object from calling `self.solve`."""
-        x_soln = np.zeros(self.n)
-        x_soln[self.basis] += self.bfs.flatten()
-        x_soln[self.lb_nonbasic_vars] += self.lb[self.lb_nonbasic_vars].flatten()
-        x_soln[self.ub_nonbasic_vars] += self.ub[self.ub_nonbasic_vars].flatten()
-        res = {
-            "x": self.bfs,
-            "basis": self.basis,
-            "cost": np.dot(x_soln, self.c.flatten()),
-            "iters": self.counter,
-        }
-        return res
+        reduced_costs[self.basis] = 0  # avoid numerical errors
+        return reduced_costs
     
     def _get_bfs_expanded(self):
         x = np.zeros(self.c.shape)
-        x[:, self.basis] += self.bfs[:, 0]
-        x[:, self.lb_nonbasic_vars] += self.lb[self.lb_nonbasic_vars].T
-        x[:, self.ub_nonbasic_vars] += self.ub[self.ub_nonbasic_vars].T
+        x[self.basis] += self.bfs[0]
+        x[self.lb_nonbasic_vars] += self.lb[self.lb_nonbasic_vars].T
+        x[self.ub_nonbasic_vars] += self.ub[self.ub_nonbasic_vars].T
         return x
     
     def _get_cost(self):
@@ -433,6 +438,7 @@ class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
     def solve(self, maxiters: int = 100):
         """Override `solve` from `PrimalRevisedSimplexSolver`."""
         self.counter = 0
+        self.optimum = True
         while self.counter < maxiters:
             self.counter += 1
             
@@ -449,11 +455,11 @@ class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
                 # case 1: col_in_A_to_enter_basis is in self.lb_nonbasic_vars -> must increase col_in_A_to_enter_basis
                 # case 1a: some basic variable drops to its lower bound
                 gammas_1 = primal_simplex_div(
-                    (self.bfs - self.lb[self.basis])[:, 0], self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
+                    (self.bfs - self.lb[self.basis]), self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
                 )
                 # case 1b: some basic variable reaches its upper bound
                 gammas_2 = primal_simplex_div(
-                    (self.ub[self.basis] - self.bfs)[:, 0], -1*self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
+                    (self.ub[self.basis] - self.bfs), -1*self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
                 )
                 # case 1c. col_in_A_to_enter_basis reaches its upper bound
                 gamma_3 = self.ub[col_in_A_to_enter_basis] - self.lb[col_in_A_to_enter_basis]
@@ -483,11 +489,11 @@ class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
                 # case 2: col_in_A_to_enter_basis is in self.ub_nonbasic_vars -> must decrease col_in_A_to_enter_basis
                 # case 2a: some basic variable drops to its lower bound
                 gammas_1 = primal_simplex_div(
-                    (self.bfs - self.lb[self.basis])[:, 0], -1*self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
+                    (self.bfs - self.lb[self.basis]), -1*self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
                 )
                 # case 2b: some basic variable reaches its upper bound
                 gammas_2 = primal_simplex_div(
-                    (self.ub[self.basis] - self.bfs)[:, 0], self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
+                    (self.ub[self.basis] - self.bfs), self.inv_basis_matrix @ self.A[:, col_in_A_to_enter_basis]
                 )
                 # case 2c. col_in_A_to_enter_basis drops to its lower bound
                 gamma_3 = self.ub[col_in_A_to_enter_basis] - self.lb[col_in_A_to_enter_basis]
@@ -514,22 +520,24 @@ class BoundedVariablePrimalSimplexSolver(PrimalNaiveSimplexSolver):
             else:
                 raise ValueError("Column to enter basis is not nonbasic.")
             self._update_bfs()
+        else:
+            self.optimum = False
 
-        return self._get_solver_return_values()
+        return self._get_solver_return_object()
     
     
     
 if __name__ == "__main__":
-    c = np.array([[-2, -4, -1 , 0, 0]])
-    b = np.array([[10], [4]])
+    c = np.array([-2, -4, -1 , 0, 0])
+    b = np.array([10, 4])
     A = np.array(
         [
             [2, 1, 1, 1, 0],
             [1, 1, -1, -0, 1]
         ]
     )
-    lb = np.expand_dims(np.array([0, 0, 1, 0, 0]), 1)
-    ub = np.expand_dims(np.array([4, 6, 4, np.inf, np.inf]), 1)
+    lb = np.array([0, 0, 1, 0, 0])
+    ub = np.array([4, 6, 4, np.inf, np.inf])
     basis = np.array([3, 4])
     lb_nonbasic_vars = np.array([0, 1, 2])
     ub_nonbasic_vars = np.array([])
