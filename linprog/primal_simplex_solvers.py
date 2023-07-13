@@ -148,6 +148,12 @@ class PrimalNaiveSimplexSolver:
         col_in_basis_to_leave_basis = np.argmin(thetas)
         return col_in_basis_to_leave_basis
 
+    def pivot(self, col_in_basis_to_leave_basis: np.array, col_in_A_to_enter_basis: np.array):
+        self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
+        self._update_inv_basis_matrix()
+        self._update_bfs()
+        
+    
     def solve(self, maxiters: int = 100):
         """Primal Simplex algorithm loop.
 
@@ -179,9 +185,7 @@ class PrimalNaiveSimplexSolver:
                 col_in_A_to_enter_basis
             )
 
-            self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
-            self._update_inv_basis_matrix()
-            self._update_bfs()
+            self.pivot(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
 
         return self._get_solver_return_object()
 
@@ -229,38 +233,16 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
         """Override `_update_bfs` from `PrimalNaiveSimplexSolver`."""
         self.bfs = premult_inv_basis_update_matrix @ self.bfs
 
-    def solve(self, maxiters: int = 100):
-        """Override `solve` from `PrimalNaiveSimplexSolver`."""
-        self.counter = 0
-        self.optimum = False
-        while self.counter < maxiters:
-            self.counter += 1
-
-            reduced_costs = self._get_reduced_costs()
-            if self._primal_check_for_optimality(reduced_costs):
-                # optimal solution found break
-                self.optimum = True
-                break
-
-            col_in_A_to_enter_basis = self._primal_get_col_in_A_to_enter_basis(
-                reduced_costs
+    def pivot(self, col_in_basis_to_leave_basis, col_in_A_to_enter_basis):
+        premult_inv_basis_update_matrix = (
+            self._calc_premultiplication_inv_basis_update_matrix(
+                col_in_A_to_enter_basis, col_in_basis_to_leave_basis
             )
-            col_in_basis_to_leave_basis = self._primal_ratio_test(
-                col_in_A_to_enter_basis
-            )
-
-            premult_inv_basis_update_matrix = (
-                self._calc_premultiplication_inv_basis_update_matrix(
-                    col_in_A_to_enter_basis, col_in_basis_to_leave_basis
-                )
-            )
-
-            self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
-            self._update_inv_basis_matrix(premult_inv_basis_update_matrix)
-            self._update_bfs(premult_inv_basis_update_matrix)
-
-        return self._get_solver_return_object()
-
+        )
+        self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
+        self._update_inv_basis_matrix(premult_inv_basis_update_matrix)
+        self._update_bfs(premult_inv_basis_update_matrix)
+        
 
 class PrimalTableauSimplexSolver:
     """Tableau implementation of Primal Simplex Algorithm."""
@@ -466,6 +448,8 @@ class BoundedVariablePrimalSimplexSolver(PrimalRevisedSimplexSolver):
     def _primal_check_for_optimality(self, reduced_costs: np.array):
         return (reduced_costs.max() <= 0) or np.isclose(reduced_costs.max(), 0)
 
+    def pivot(self, *args, **kwargs):
+        raise NotImplementedError("`pivot` operation/method not decoupled from `solve` method for this class.")
     def solve(self, maxiters: int = 100):
         """Override `solve` from `PrimalRevisedSimplexSolver`."""
         self.counter = 0

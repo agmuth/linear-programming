@@ -82,3 +82,42 @@ class TwoPhaseSimplexSolver:
         )
 
         return self.tableau.solve(maxiters)
+    
+    
+class TwoPhaseSolver():
+    def __init__(self, c: np.array, A: np.array, b: np.array) -> None:
+        self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
+        self.m, self.n = A.shape
+        self.row_offset = 1
+        self.col_offset = 1
+        self.artificial_tableau = None
+        self.tableau = None         
+
+    def _phase_one(self):
+        c = np.hstack([np.zeros(self.n), np.ones(self.m)])
+        A = np.hstack([self.A, np.eye(self.m)])
+        b = np.array(self.b)
+        basis = np.arange(self.n, self.n+self.m)
+        solver = PrimalRevisedSimplexSolver(c, A, b, basis)
+        res = solver.solve()
+        res
+    
+    def _phase_two(self):
+        pass
+    
+    def solve(self):
+        pass
+    
+if __name__ == "__main__":
+    c = np.array([-1, 2, -3, 0])
+    A = np.array(
+        [
+            [1, 1, 1, 0],
+            [-1, 1, 2, 0],
+            [0, 2, 3, 0],
+            [0, 0, 1, 1],
+        ]
+    )
+    b = np.array([6, 4, 10, 2])
+    solver = TwoPhaseSolver(c, A, b)
+    solver._phase_one()

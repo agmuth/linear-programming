@@ -100,52 +100,21 @@ class DualNaiveSimplexSolver(PrimalNaiveSimplexSolver):
 
             col_in_basis_to_leave_basis = self._dual_get_col_in_basis_to_leave_basis()
             col_in_A_to_enter_basis = self._dual_ratio_test(col_in_basis_to_leave_basis)
-            self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
-            self._update_inv_basis_matrix()
-            self._update_bfs()
+            self.pivot(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
 
         return self._get_solver_return_object()
 
 
-class DualRevisedSimplexSolver(DualNaiveSimplexSolver, PrimalRevisedSimplexSolver):
+class DualRevisedSimplexSolver(PrimalRevisedSimplexSolver, DualNaiveSimplexSolver):
     """Revised Dual Simplex algorithm that implements Bland's selection rule to avoid cycling.
     Inherits from `DualNaiveSimplexSolver` and `PrimalRevisedSimplexSolver`.
     """
-
-    def solve(self, maxiters: int = 100):
-        """Override `solve` from `DualNaiveSimplexSolver`."""
-        self.counter = 0
-        while self.counter < maxiters:
-            self.counter += 1
-
-            if self._dual_check_for_optimality():
-                # optimal solution found break
-                self.optimum = True
-                break
-
-            col_in_basis_to_leave_basis = self._dual_get_col_in_basis_to_leave_basis()
-            feasible_direction = self._dual_get_feasible_direction(
-                col_in_basis_to_leave_basis
-            )
-
-            if self._dual_check_for_unbnoundedness(feasible_direction):
-                raise ValueError("Problem is unbounded.")
-
-            reduced_costs = self._get_reduced_costs()
-
-            thetas = dual_simplex_div(reduced_costs, feasible_direction)
-            col_in_A_to_enter_basis = np.argmin(thetas)
-
-            premultiplication_inv_basis_update_matrix = (
-                self._calc_premultiplication_inv_basis_update_matrix(
-                    col_in_A_to_enter_basis, col_in_basis_to_leave_basis
-                )
-            )
-            self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
-            self._update_inv_basis_matrix(premultiplication_inv_basis_update_matrix)
-            self._update_bfs(premultiplication_inv_basis_update_matrix)
-
-        return self._get_solver_return_object()
+    
+    def pivot(self, col_in_basis_to_leave_basis, col_in_A_to_enter_basis):
+        # bound pivot method to `PrimalRevisedSimplexSolver`
+        PrimalRevisedSimplexSolver.pivot(self, col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
+        
+    
 
 
 class DualTableauSimplexSolver:
