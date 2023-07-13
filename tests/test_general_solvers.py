@@ -15,6 +15,7 @@ def test_general_simplex_solver_for_correct_soln(problem, solver):
     res = solver.solve()
     assert np.array_equal(res.basis, problem.optimal_basis)
 
+
 @pytest.mark.parametrize("solver", SOLVERS)
 def test_redundent_constraints(solver):
     c = np.array([-1, 2, -3, 0])
@@ -30,7 +31,7 @@ def test_redundent_constraints(solver):
     solver = solver(c, A, b)
     res = solver.solve()
     assert np.array_equal(res.x[res.basis], np.array([2, 2, 2]))
-    
+
 
 @pytest.mark.parametrize("solver", SOLVERS)
 def test_infeasible_constraints(solver):
@@ -45,4 +46,3 @@ def test_infeasible_constraints(solver):
     solver = solver(c, A, b)
     with pytest.raises(Exception):
         solver.solve()
-    

@@ -109,12 +109,12 @@ class DualRevisedSimplexSolver(PrimalRevisedSimplexSolver, DualNaiveSimplexSolve
     """Revised Dual Simplex algorithm that implements Bland's selection rule to avoid cycling.
     Inherits from `DualNaiveSimplexSolver` and `PrimalRevisedSimplexSolver`.
     """
-    
+
     def pivot(self, col_in_basis_to_leave_basis, col_in_A_to_enter_basis):
         # bound pivot method to `PrimalRevisedSimplexSolver`
-        PrimalRevisedSimplexSolver.pivot(self, col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
-        
-    
+        PrimalRevisedSimplexSolver.pivot(
+            self, col_in_basis_to_leave_basis, col_in_A_to_enter_basis
+        )
 
 
 class DualTableauSimplexSolver:

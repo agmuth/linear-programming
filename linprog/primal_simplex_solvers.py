@@ -148,12 +148,13 @@ class PrimalNaiveSimplexSolver:
         col_in_basis_to_leave_basis = np.argmin(thetas)
         return col_in_basis_to_leave_basis
 
-    def pivot(self, col_in_basis_to_leave_basis: np.array, col_in_A_to_enter_basis: np.array):
+    def pivot(
+        self, col_in_basis_to_leave_basis: np.array, col_in_A_to_enter_basis: np.array
+    ):
         self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
         self._update_inv_basis_matrix()
         self._update_bfs()
-        
-    
+
     def solve(self, maxiters: int = 100):
         """Primal Simplex algorithm loop.
 
@@ -242,7 +243,7 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
         self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
         self._update_inv_basis_matrix(premult_inv_basis_update_matrix)
         self._update_bfs(premult_inv_basis_update_matrix)
-        
+
 
 class PrimalTableauSimplexSolver:
     """Tableau implementation of Primal Simplex Algorithm."""
@@ -449,7 +450,10 @@ class BoundedVariablePrimalSimplexSolver(PrimalRevisedSimplexSolver):
         return (reduced_costs.max() <= 0) or np.isclose(reduced_costs.max(), 0)
 
     def pivot(self, *args, **kwargs):
-        raise NotImplementedError("`pivot` operation/method not decoupled from `solve` method for this class.")
+        raise NotImplementedError(
+            "`pivot` operation/method not decoupled from `solve` method for this class."
+        )
+
     def solve(self, maxiters: int = 100):
         """Override `solve` from `PrimalRevisedSimplexSolver`."""
         self.counter = 0
