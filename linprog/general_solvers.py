@@ -1,6 +1,6 @@
 import numpy as np
 
-from linprog.primal_simplex_solvers import *
+from linprog.primal_solvers import *
 
 
 class TwoPhaseTableauSimplexSolver:

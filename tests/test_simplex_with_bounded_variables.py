@@ -1,6 +1,6 @@
 import numpy as np
 
-from linprog.primal_simplex_solvers import BoundedVariablePrimalSimplexSolver
+from linprog.primal_solvers import BoundedVariablePrimalSimplexSolver
 
 
 def test_1():

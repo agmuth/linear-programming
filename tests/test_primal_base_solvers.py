@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from linprog.primal_simplex_solvers import *
+from linprog.primal_solvers import *
 from tests.constants import TOL
 from tests.problems import *
 
