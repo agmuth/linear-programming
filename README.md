@@ -1,10 +1,10 @@
 # linear-programming
 Collection of linear programming algorithms from self study. 
 
-## installation
+## Installation
 ```{code}
 pip install git+https://github.com/agmuth/linear-programming.git
 ```
 
-## examples
+## Examples
 See `example/`
