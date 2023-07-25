@@ -82,8 +82,15 @@ class ProblemPreprocessingUtils:
         c = np.array(c).astype(np.float32)
         A = np.array(A).astype(np.float32)
         b = np.array(b).astype(np.float32)
-        lb = np.array(lb).astype(np.float32)
-        ub = np.array(ub).astype(np.float32)
+        
+        if lb is None:
+            lb = np.repeat(0.0, A.shape[1])
+        else:
+            lb = np.array(lb).astype(np.float32)
+        if ub is None:
+            ub = np.repeat(np.inf, A.shape[1])
+        else:
+            ub = np.array(ub).astype(np.float32)
 
         # add lb/ub surplus/slack vars to A
         lb_surplus_index = ~np.isclose(lb, 0.0)
