@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from linprog.dual_solvers import PrimalDualAlgorithm
+from linprog.special_solvers import PrimalDualAlgorithm
 from tests.constants import TOL
 from tests.problems import PRIMAL_DUAL_SOLVER_PROBLEMS
 

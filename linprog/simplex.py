@@ -2,8 +2,9 @@ from typing import Optional
 
 import numpy as np
 
-from linprog.primal_solvers import *
-from linprog.utils import ProblemPreprocessingUtils
+from linprog.preprocessing import ProblemPreprocessingUtils
+from linprog.primal_solvers import PrimalRevisedSimplexSolver
+from linprog.special_solvers import PhaseOneSimplexSolver
 
 
 class SimplexSolver(PrimalRevisedSimplexSolver):
@@ -59,7 +60,7 @@ class SimplexSolver(PrimalRevisedSimplexSolver):
             )
             _b = np.concatenate([np.array(b), np.array(_h)])
         else:
-            raise ValueError("Polyhedral misspcified.")
+            raise ValueError("Input polyhedral misspcified.")
         _c = np.concatenate([np.array(c), np.zeros(self.num_slack_vars)])
 
         if lb is None:
@@ -96,33 +97,6 @@ class SimplexSolver(PrimalRevisedSimplexSolver):
         # need to seperate out basic vars and non basic vars for bounded simplex algorithm
         solver = PrimalRevisedSimplexSolver(c_phase1, A_phase1, b_phase1, basis)
         res = solver.solve(maxiters=maxiters2)
-
-        # vars = np.arange(self.num_vars)
-        # lb_nonbasic_vars = vars[np.isclose(bfs - self.lb, 0.0)]
-        # ub_nonbasic_vars = vars[np.isclose(bfs - self.ub, 0.0)]
-        # basic_vars = vars[
-        #     ~np.isclose(bfs - self.lb, 0.0) * ~np.isclose(bfs - self.ub, 0.0)
-        # ]
-
-        # # chck to make sure we have enough basic vars
-        # while (len(basic_vars) < self.A.shape[0]) and (len(ub_nonbasic_vars) > 0):
-        #     basic_vars = np.append(basic_vars, ub_nonbasic_vars[-1])
-        #     ub_nonbasic_vars = ub_nonbasic_vars[:-1]
-
-        # while (len(basic_vars) < self.A.shape[0]) and (len(lb_nonbasic_vars) > 0):
-        #     basic_vars = np.append(basic_vars, lb_nonbasic_vars[-1])
-        #     lb_nonbasic_vars = lb_nonbasic_vars[:-1]
-
-        # res = BoundedVariablePrimalSimplexSolver(
-        #     c=self.c,
-        #     A=self.A,
-        #     b=self.b,
-        #     lb=self.lb,
-        #     ub=self.ub,
-        #     basis=basic_vars,
-        #     lb_nonbasic_vars=lb_nonbasic_vars,
-        #     ub_nonbasic_vars=ub_nonbasic_vars,
-        # ).solve(maxiters=maxiters2)
         res.x = res.x[: self.num_vars - self.num_slack_vars]  # remove slack vars
         res.basis = None  # basis is uninterpretable without slack vars
         return res

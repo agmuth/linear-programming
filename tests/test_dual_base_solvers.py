@@ -2,14 +2,12 @@ import numpy as np
 import pytest
 
 from linprog.dual_solvers import *
-from linprog.tableau import DualTableauSimplexSolver
 from tests.constants import TOL
 from tests.problems import *
 
 SOLVERS = [
     DualNaiveSimplexSolver,
     DualRevisedSimplexSolver,
-    DualTableauSimplexSolver,
 ]
 
 
