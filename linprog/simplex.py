@@ -39,9 +39,6 @@ class SimplexSolver(PrimalRevisedSimplexSolver):
         A_and_b = A is not None and b is not None
         G_and_h = G is not None and h is not None
         self.num_slack_vars = 0 if G is None else G.shape[0]
-        self.num_vars = 0 if A is None else A.shape[1]
-        self.num_vars = 0 if G is None else G.shape[1]
-        self.num_vars += self.num_slack_vars
 
         if A_and_b and not G_and_h:
             _A = np.array(A)
@@ -76,6 +73,7 @@ class SimplexSolver(PrimalRevisedSimplexSolver):
         (self.c, self.A, self.b) = ProblemPreprocessingUtils.preprocess_problem(
             _c, _A, _b
         )
+        self.num_vars = self.A.shape[1]
 
     def solve(self, maxiters1: int = 100, maxiters2: int = 100):
         (
@@ -87,12 +85,12 @@ class SimplexSolver(PrimalRevisedSimplexSolver):
         )
 
         phase_one_solver = PhaseOneSimplexSolver(c_phase1, A_phase1, b_phase1)
-        phase_one_solver.solve()
+        phase_one_solver.solve(maxiters=maxiters1)
         basis = phase_one_solver.basis
 
         bfs = np.zeros(A_phase1.shape[1])
         bfs[basis] = np.linalg.inv(A_phase1[:, basis]) @ b_phase1
-        bfs = bfs[: self.num_vars]
+        bfs = bfs[: self.num_vars]  # change to `A`
 
         # `bfs` satifies Ax=b defined above and is a bfs for original problem defined with variable bounds outside of `A`
         # need to seperate out basic vars and non basic vars for bounded simplex algorithm

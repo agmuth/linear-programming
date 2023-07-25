@@ -82,7 +82,7 @@ class ProblemPreprocessingUtils:
         c = np.array(c).astype(np.float32)
         A = np.array(A).astype(np.float32)
         b = np.array(b).astype(np.float32)
-        
+
         if lb is None:
             lb = np.repeat(0.0, A.shape[1])
         else:
