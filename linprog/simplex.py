@@ -3,6 +3,7 @@ from typing import Optional
 import numpy as np
 
 from linprog.primal_solvers import *
+from linprog.utils import ProblemPreprocessingUtils
 
 
 class SimplexSolver(PrimalRevisedSimplexSolver):
@@ -46,21 +47,23 @@ class SimplexSolver(PrimalRevisedSimplexSolver):
             _A = np.array(A)
             _b = np.array(b)
         elif not A_and_b and G_and_h:
-            _A = np.hstack([np.array(G), np.eye(self.num_slack_vars)])
-            _b = np.array(h)
+            _, _A, _b = ProblemPreprocessingUtils.canonical_form_to_standard_form(
+                c, G, h
+            )
         elif A_and_b and G_and_h:
+            _, _G, _h = ProblemPreprocessingUtils.canonical_form_to_standard_form(
+                c, G, h
+            )
             _A = np.vstack(
                 [
                     np.hstack([np.array(A), np.zeros(A.shape[0], self.num_slack_vars)]),
-                    np.hstack([np.array(G), np.eye(self.num_slack_vars)]),
+                    _G,
                 ]
             )
-            _b = np.concatenate([np.array(b), np.array(h)])
+            _b = np.concatenate([np.array(b), np.array(_h)])
         else:
             raise ValueError("Polyhedral misspcified.")
         _c = np.concatenate([np.array(c), np.zeros(self.num_slack_vars)])
-
-        (self.c, self.A, self.b) = self._preprocess_problem(_c, _A, _b)
 
         if lb is None:
             lb = np.repeat(-np.inf, self.A.shape[1] - self.num_slack_vars)
@@ -70,45 +73,25 @@ class SimplexSolver(PrimalRevisedSimplexSolver):
             ub = np.repeat(np.inf, self.A.shape[1] - self.num_slack_vars)
         self.ub = np.concatenate([np.array(ub), np.repeat(np.inf, self.num_slack_vars)])
 
-    def solve(self, maxiters1: int = 100, maxiters2: int = 100):
-        # phase I to get bfs to general problem
-
-        # add lb/ub surplus/slack vars to A
-        lb_surplus_index = ~np.isclose(self.lb, 0.0)
-        ub_slack_index = ~np.isclose(self.ub, np.inf)
-        if lb_surplus_index.any() or ub_slack_index.any():
-            offset = self.A.shape[1]
-            zeros = np.zeros(
-                (
-                    self.A.shape[0],
-                    offset * (int(lb_surplus_index.any()) + int(ub_slack_index.any())),
-                )
-            )
-            A = np.hstack([self.A, zeros])
-            for i, b in enumerate(lb_surplus_index):
-                if not b:
-                    continue
-                # add constraint of form `x_i - s_i = lb_i` to A
-                A = np.vstack([A, np.zeros((1, A.shape[1]))])
-                A[-1, i] += 1
-                A[-1, offset + i] -= 1
-            for i, b in enumerate(ub_slack_index):
-                if not b:
-                    continue
-                # add constraint of form `x_i + s_i = ub_i` to A
-                A = np.vstack([A, np.zeros((1, A.shape[1]))])
-                A[-1, i] += 1
-                A[-1, 2 * offset + i] += 1
-        # vars are now all 0 <= x < inf
-        # absorb lower/upper bounds into `b`
-        b = np.concatenate([self.b, self.lb[lb_surplus_index], self.ub[ub_slack_index]])
-        # `c` doesn't matter - were passing to phase I algo which will zero out `c` and add artificial vars anyways
-        c = np.zeros(A.shape[1])
-        basis = TwoPhaseRevisedSimplexSolver(c, A, b).solve(
-            maxiters1=maxiters1, return_phase_1_basis=True
+        (self.c, self.A, self.b) = ProblemPreprocessingUtils.preprocess_problem(
+            _c, _A, _b
         )
-        bfs = np.zeros(A.shape[1])
-        bfs[basis] = np.linalg.inv(A[:, basis]) @ b
+
+    def solve(self, maxiters1: int = 100, maxiters2: int = 100):
+        (
+            c_phase1,
+            A_phase1,
+            b_phase1,
+        ) = ProblemPreprocessingUtils.add_variables_bounds_to_coefficient_matrix(
+            self.c, self.A, self.b, self.lb, self.ub
+        )
+
+        phase_one_solver = PhaseOneSimplexSolver(c_phase1, A_phase1, b_phase1)
+        phase_one_solver.solve()
+        basis = phase_one_solver.basis
+
+        bfs = np.zeros(A_phase1.shape[1])
+        bfs[basis] = np.linalg.inv(A_phase1[:, basis]) @ b_phase1
         bfs = bfs[: self.num_vars]
 
         # `bfs` satifies Ax=b defined above and is a bfs for original problem defined with variable bounds outside of `A`

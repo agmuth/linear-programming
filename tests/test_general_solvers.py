@@ -47,3 +47,7 @@ def test_infeasible_constraints(solver):
     solver = solver(c, A, b)
     with pytest.raises(Exception):
         solver.solve()
+
+
+if __name__ == "__main__":
+    test_redundent_constraints(solver=TwoPhaseRevisedSimplexSolver)
