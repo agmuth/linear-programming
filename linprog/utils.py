@@ -48,3 +48,15 @@ class LinProgResult:
     cost: float
     iters: int
     optimum: bool
+
+
+def preprocess_problem(c, A, b):
+    c = np.array(c).astype(np.float32).flatten()
+    A = np.array(A).astype(np.float32)
+    b = np.array(b).astype(np.float32).flatten()
+
+    b_is_neg_index = b < 0
+    A[b_is_neg_index] *= -1
+    b[b_is_neg_index] *= -1
+
+    return c, A, b

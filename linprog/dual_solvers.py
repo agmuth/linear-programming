@@ -131,8 +131,11 @@ class PrimalDualAlgorithm(DualRevisedSimplexSolver):
         b : np.array
             (m,) vector defining the equality constraints.
         """
-        self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
-        self._preprocess()
+        (
+            self.c,
+            self.A,
+            self.b,
+        ) = self._preprocess_problem(c, A, b)
         self.m, self.n = A.shape
         self.counter = 0
         self.optimum = False

@@ -2,7 +2,7 @@
 # ref: http://documentation.sas.com/doc/en/orcdc/14.2/ormpug/ormpug_lpsolver_examples01.htm
 
 import numpy as np
-from linprog.general_solvers import SimplexSolver
+from linprog.simplex import SimplexSolver
 
 # nutritional content
 # arrays indexed ('Bread', 'Milk', 'Cheese', 'Potato', 'Fish', 'Yogurt')
