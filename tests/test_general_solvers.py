@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from linprog.general_solvers import *
+from linprog.tableau import TwoPhaseTableauSimplexSolver
 from tests.constants import TOL
 from tests.problems import PRIMAL_BASE_SOLVER_PROBLEMS
 

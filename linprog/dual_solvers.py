@@ -1,7 +1,6 @@
 import numpy as np
 
 from linprog.primal_solvers import *
-from linprog.tableau import Tableau
 from linprog.utils import *
 
 
@@ -114,91 +113,6 @@ class DualRevisedSimplexSolver(PrimalRevisedSimplexSolver, DualNaiveSimplexSolve
         # bound pivot method to `PrimalRevisedSimplexSolver`
         PrimalRevisedSimplexSolver.pivot(
             self, col_in_basis_to_leave_basis, col_in_A_to_enter_basis
-        )
-
-
-class DualTableauSimplexSolver:
-    """Tableau implementation of Dual Simplex Algorithm."""
-
-    def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array) -> None:
-        """Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
-
-        Parameters
-        ----------
-        c : np.array
-            (1, n) cost vector
-        A : np.array
-            (m, n) matirx defining linear combinations subject to equality constraints.
-        b : np.array
-            (m, 1) vector defining the equality constraints.
-        basis : np.array
-            array of length `m` mapping columns in `A` to their indicies in the basic feasible solution (bfs).
-        """
-        self.tableau = Tableau(c, A, b, basis)
-
-    def solve(self, maxiters=100):
-        """Dual Simplex algorithm loop.
-
-        Parameters
-        ----------
-        maxiters : int, optional
-            maximum number of simplex steps, by default 100
-
-        Returns
-        -------
-        _type_
-            _description_
-        """
-        self.counter = 0
-        self.optimum = False
-        while self.counter < maxiters:
-            self.counter += 1
-            self.tableau.tableau[0, 1:][
-                self.tableau.basis
-            ] = 0  # avoid numerical errors
-            if (self.tableau.tableau[1:, 0].min() >= 0) or np.isclose(
-                self.tableau.tableau[1:, 0].min(), 0
-            ):  # check for termination condition
-                self.optimum = True
-                break
-
-            pivot_row = np.argmax(self.tableau.tableau[1:, 0] < 0) + 1
-
-            if self.tableau.tableau[pivot_row, 1:].min() >= 0:
-                raise ValueError(
-                    "`pivot_row` entries are all non negative. problem is unbounded."
-                )
-
-            self.tableau.tableau[pivot_row, 1:] < 0
-
-            pivot_col = (
-                np.argmin(
-                    [
-                        r if v < 0 else np.inf
-                        for v, r in zip(
-                            self.tableau.tableau[pivot_row, 1:],
-                            primal_simplex_div(
-                                self.tableau.tableau[0, 1:],
-                                np.abs(self.tableau.tableau[pivot_row, 1:]),
-                            ),
-                        )
-                    ]
-                )
-                + 1
-            )  # bland's rule
-
-            self.tableau.pivot(pivot_row, pivot_col)
-
-        self.basis = self.tableau.basis
-        self.bfs = self.tableau.tableau[1:, 0]
-        x_soln = np.zeros(self.tableau.n)
-        x_soln[self.basis] = self.bfs
-        return LinProgResult(
-            x=x_soln,
-            basis=self.basis,
-            cost=self.tableau.tableau[0, 0],
-            iters=self.counter,
-            optimum=self.optimum,
         )
 
 
