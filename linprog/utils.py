@@ -116,4 +116,3 @@ class ProblemPreprocessingUtils:
         b = np.concatenate([b, lb[lb_surplus_index], ub[ub_slack_index]])
         c = np.concatenate([c, np.zeros(lb_surplus_index.sum() + ub_slack_index.sum())])
         return ProblemPreprocessingUtils.preprocess_problem(c, A, b)
-

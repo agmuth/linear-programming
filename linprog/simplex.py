@@ -96,7 +96,7 @@ class SimplexSolver(PrimalRevisedSimplexSolver):
         # need to seperate out basic vars and non basic vars for bounded simplex algorithm
         solver = PrimalRevisedSimplexSolver(c_phase1, A_phase1, b_phase1, basis)
         res = solver.solve(maxiters=maxiters2)
-        
+
         # vars = np.arange(self.num_vars)
         # lb_nonbasic_vars = vars[np.isclose(bfs - self.lb, 0.0)]
         # ub_nonbasic_vars = vars[np.isclose(bfs - self.ub, 0.0)]
@@ -126,16 +126,3 @@ class SimplexSolver(PrimalRevisedSimplexSolver):
         res.x = res.x[: self.num_vars - self.num_slack_vars]  # remove slack vars
         res.basis = None  # basis is uninterpretable without slack vars
         return res
-
-
-if __name__ == "__main__":
-    c = np.array([-4, 1, 0, 0, 0])
-    A = np.array([[7, -2], [0, 1], [2, -2]])
-    A = np.hstack([A, np.eye(A.shape[0])])
-    b = np.array([14, 3, 3])
-    lb = np.array([1, 1, 0, 0, 0])
-    ub = np.repeat(np.inf, A.shape[1])
-    
-    c, A, b = ProblemPreprocessingUtils.add_variables_bounds_to_coefficient_matrix(c, A, b, lb, ub)
-    res = SimplexSolver(c=c, A=A, b=b).solve()
-    print(res)
