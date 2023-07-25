@@ -2,7 +2,7 @@
 # ref: http://documentation.sas.com/doc/en/orcdc/14.2/ormpug/ormpug_lpsolver_examples01.htm
 
 import numpy as np
-from linprog.general_solvers import TwoPhaseRevisedSimplexSolver
+from linprog.general_solvers import SimplexSolver
 
 # nutritional content
 # arrays indexed ('Bread', 'Milk', 'Cheese', 'Potato', 'Fish', 'Yogurt')
@@ -23,23 +23,24 @@ min_fat = 8
 fish_lb = 0.5
 milk_ub = 1.0
 
-# setup problem 
-A = np.vstack(
+# setup problem  in form Gx <= h
+G = np.vstack(
     [
-        np.concatenate([calories, np.array([-1, 0, 0, 0, 0, 0])]),
-        np.concatenate([protien, np.array([0, 1, 0, 0, 0, 0])]),
-        np.concatenate([carbohydrates, np.array([0, 0, -1, 0, 0, 0])]),
-        np.concatenate([fat, np.array([0, 0, 0, -1, 0, 0])]),
-        np.array([0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]), # max milk bound
-        np.array([0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, -1]) # min fish bound
+        -1*calories,
+        protien,
+        -1*carbohydrates,
+        -1*fat,
     ]
 )
-m, n = A.shape
+h = np.array([-1*min_calories, max_protien, -1*min_carbohydrates, -1*min_fat,])
+c = np.array(costs)
 
-c = np.concatenate([np.array(costs), np.zeros(m)])
-b = np.array([min_calories, max_protien, min_carbohydrates, min_fat, milk_ub, fish_lb])
+lb = np.repeat(0.0, len(foods))
+ub = np.repeat(np.inf, len(foods))
+lb[4] = fish_lb
+ub[1] = milk_ub
 
-solver = TwoPhaseRevisedSimplexSolver(c, A, b)
+solver = SimplexSolver(c=c, G=G, h=h, lb=lb, ub=ub)
 res = solver.solve()
 
 print(f"\nOptimal Diet Cost: {res.cost}")

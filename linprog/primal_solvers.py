@@ -26,6 +26,7 @@ class PrimalNaiveSimplexSolver:
             np.array(A),
             np.array(b.flatten()),
         )
+        self._preprocess()
         self.m, self.n = A.shape
         self.row_offset = 1
         self.col_offset = 1
@@ -35,6 +36,12 @@ class PrimalNaiveSimplexSolver:
         self.bfs = self.inv_basis_matrix @ self.b
         self.counter = None
         self.optimum = None
+        
+    def _preprocess(self):
+        """Misc preprocessing."""
+        b_is_neg_index = (self.b<0)
+        self.A[b_is_neg_index] *= -1
+        self.b[b_is_neg_index] *= -1
 
     def _get_reduced_costs(self):
         """
@@ -245,88 +252,6 @@ class PrimalRevisedSimplexSolver(PrimalNaiveSimplexSolver):
         self._update_bfs(premult_inv_basis_update_matrix)
 
 
-class PrimalTableauSimplexSolver:
-    """Tableau implementation of Primal Simplex Algorithm."""
-
-    def __init__(self, c: np.array, A: np.array, b: np.array, basis: np.array):
-        """Assumes LP is passed in in standard form (min c'x sbj. Ax = b, x >= 0)
-
-        Parameters
-        ----------
-        c : np.array
-            (n, ) cost vector
-        A : np.array
-            (m, n) matirx defining linear combinations subject to equality constraints.
-        b : np.array
-            (m,) vector defining the equality constraints.
-        basis : np.array
-            array of length `m` mapping columns in `A` to their indicies in the basic feasible solution (bfs).
-        """
-
-        self.tableau = Tableau(c, A, b, basis)
-
-    def solve(self, maxiters=100):
-        """Primal Simplex algorithm loop.
-
-        Parameters
-        ----------
-        maxiters : int, optional
-            maximum number of simplex steps, by default 100
-
-        Returns
-        -------
-        _type_
-            _description_
-        """
-        self.counter = 0
-        self.optimum = False
-        while self.counter < maxiters:
-            self.counter += 1
-            self.tableau.tableau[0, 1:][
-                self.tableau.basis
-            ] = 0  # avoid numerical errors
-            if (self.tableau.tableau[0, 1:].min() >= 0) or np.isclose(
-                self.tableau.tableau[0, 1:].min(), 0
-            ):  # 0^th row is reduced costs
-                # optimal solution found break
-                self.optimum = True
-                break
-
-            pivot_col = np.argmax(self.tableau.tableau[0, 1:] < 0) + 1
-
-            if (
-                self.tableau.tableau[1:, pivot_col].max() <= 0
-            ):  # check to make sure search direction has at least one positive entry
-                # optimal cost is -inf -> problem is unbounded
-                raise ValueError(
-                    "Reduced cost vector has all non-positive entries. Rroblem is unbounded."
-                )
-
-            pivot_row = (
-                np.argmin(
-                    primal_simplex_div(
-                        self.tableau.tableau[1:, 0],
-                        self.tableau.tableau[1:, pivot_col],  # feasible direction
-                    )
-                )
-                + 1
-            )  # bland's rule
-
-            self.tableau.pivot(pivot_row, pivot_col)
-
-        self.basis = self.tableau.basis
-        self.bfs = self.tableau.tableau[1:, 0]
-        x_soln = np.zeros(self.tableau.n)
-        x_soln[self.basis] = self.bfs
-        return LinProgResult(
-            x=x_soln,
-            basis=self.basis,
-            cost=self.tableau.tableau[0, 0],
-            iters=self.counter,
-            optimum=self.optimum,
-        )
-
-
 class BoundedVariablePrimalSimplexSolver(PrimalRevisedSimplexSolver):
     def __init__(
         self,
@@ -365,6 +290,7 @@ class BoundedVariablePrimalSimplexSolver(PrimalRevisedSimplexSolver):
             np.array(A).astype(np.float32),
             np.array(b).astype(np.float32),
         )
+        self._preprocess()
         self.lb, self.ub = np.array(lb), np.array(ub)
         self.m, self.n = A.shape
         self.row_offset = 1
@@ -460,6 +386,7 @@ class BoundedVariablePrimalSimplexSolver(PrimalRevisedSimplexSolver):
         self.optimum = False
         while self.counter < maxiters:
             self.counter += 1
+            col_in_basis_to_leave_basis = None
 
             reduced_costs = self._get_reduced_costs()
             if self._primal_check_for_optimality(reduced_costs):
@@ -565,13 +492,14 @@ class BoundedVariablePrimalSimplexSolver(PrimalRevisedSimplexSolver):
             else:
                 raise ValueError("Column to enter basis is not nonbasic.")
 
-            self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
-            premult_inv_basis_update_matrix = (
-                self._calc_premultiplication_inv_basis_update_matrix(
-                    col_in_A_to_enter_basis, col_in_basis_to_leave_basis
+            if col_in_basis_to_leave_basis is not None:
+                self._update_basis(col_in_basis_to_leave_basis, col_in_A_to_enter_basis)
+                premult_inv_basis_update_matrix = (
+                    self._calc_premultiplication_inv_basis_update_matrix(
+                        col_in_A_to_enter_basis, col_in_basis_to_leave_basis
+                    )
                 )
-            )
-            self._update_inv_basis_matrix(premult_inv_basis_update_matrix)
+                self._update_inv_basis_matrix(premult_inv_basis_update_matrix)
             self._update_bfs()
 
         return self._get_solver_return_object()

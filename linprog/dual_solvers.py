@@ -116,7 +116,7 @@ class DualRevisedSimplexSolver(PrimalRevisedSimplexSolver, DualNaiveSimplexSolve
         )
 
 
-class PrimalDualAlgorithm:
+class PrimalDualAlgorithm(DualRevisedSimplexSolver):
     """Primal-Dual Algorithm for Linear Programs."""
 
     def __init__(self, c: np.array, A: np.array, b: np.array):
@@ -132,6 +132,7 @@ class PrimalDualAlgorithm:
             (m,) vector defining the equality constraints.
         """
         self.c, self.A, self.b = np.array(c), np.array(A), np.array(b)
+        self._preprocess()
         self.m, self.n = A.shape
         self.counter = 0
         self.optimum = False
