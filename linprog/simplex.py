@@ -16,6 +16,25 @@ class SimplexSolver(PrimalRevisedSimplexSolver):
         lb: Optional[np.array] = None,
         ub: Optional[np.array] = None,
     ):
+        """Assumes LP is passed in in standard form (min c'x sbj. Ax = b, Gx <= h, lb <= x <= ub)
+
+        Parameters
+        ----------
+        c : np.array
+            (n,) cost vector
+        A : np.array
+            (m1, n) matrix defining linear combinations subject to equality constraints.
+        b : np.array
+            (m1,) vector defining the equality constraints.
+        G : np.array
+            (m2, n) matrix defining linear combinations subject to less than or equal constraints.
+        h : np.array
+            (m2,) vector defining the less than or equal constraints.
+        lb : np.array
+            (n,) vector specifying lower bounds on x. -np.inf indicates variable is unbounded below.
+        ub : np.array
+            (n,) vector specifying lower bounds on x. +np.inf indicates variable is unbounded above.
+        """
         A_and_b = A is not None and b is not None
         G_and_h = G is not None and h is not None
         self.num_slack_vars = 0 if G is None else G.shape[0]
