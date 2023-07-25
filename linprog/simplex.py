@@ -63,11 +63,11 @@ class SimplexSolver(PrimalRevisedSimplexSolver):
         _c = np.concatenate([np.array(c), np.zeros(self.num_slack_vars)])
 
         if lb is None:
-            lb = np.repeat(-np.inf, self.A.shape[1] - self.num_slack_vars)
+            lb = np.repeat(0, _A.shape[1] - self.num_slack_vars)
         self.lb = np.concatenate([np.array(lb), np.repeat(0, self.num_slack_vars)])
 
         if ub is None:
-            ub = np.repeat(np.inf, self.A.shape[1] - self.num_slack_vars)
+            ub = np.repeat(np.inf, _A.shape[1] - self.num_slack_vars)
         self.ub = np.concatenate([np.array(ub), np.repeat(np.inf, self.num_slack_vars)])
 
         (self.c, self.A, self.b) = ProblemPreprocessingUtils.preprocess_problem(
@@ -94,33 +94,48 @@ class SimplexSolver(PrimalRevisedSimplexSolver):
 
         # `bfs` satifies Ax=b defined above and is a bfs for original problem defined with variable bounds outside of `A`
         # need to seperate out basic vars and non basic vars for bounded simplex algorithm
+        solver = PrimalRevisedSimplexSolver(c_phase1, A_phase1, b_phase1, basis)
+        res = solver.solve(maxiters=maxiters2)
+        
+        # vars = np.arange(self.num_vars)
+        # lb_nonbasic_vars = vars[np.isclose(bfs - self.lb, 0.0)]
+        # ub_nonbasic_vars = vars[np.isclose(bfs - self.ub, 0.0)]
+        # basic_vars = vars[
+        #     ~np.isclose(bfs - self.lb, 0.0) * ~np.isclose(bfs - self.ub, 0.0)
+        # ]
 
-        vars = np.arange(self.num_vars)
-        lb_nonbasic_vars = vars[np.isclose(bfs - self.lb, 0.0)]
-        ub_nonbasic_vars = vars[np.isclose(bfs - self.ub, 0.0)]
-        basic_vars = vars[
-            ~np.isclose(bfs - self.lb, 0.0) * ~np.isclose(bfs - self.ub, 0.0)
-        ]
+        # # chck to make sure we have enough basic vars
+        # while (len(basic_vars) < self.A.shape[0]) and (len(ub_nonbasic_vars) > 0):
+        #     basic_vars = np.append(basic_vars, ub_nonbasic_vars[-1])
+        #     ub_nonbasic_vars = ub_nonbasic_vars[:-1]
 
-        # chck to make sure we have enough basic vars
-        while (len(basic_vars) < self.A.shape[0]) and (len(ub_nonbasic_vars) > 0):
-            basic_vars = np.append(basic_vars, ub_nonbasic_vars[-1])
-            ub_nonbasic_vars = ub_nonbasic_vars[:-1]
+        # while (len(basic_vars) < self.A.shape[0]) and (len(lb_nonbasic_vars) > 0):
+        #     basic_vars = np.append(basic_vars, lb_nonbasic_vars[-1])
+        #     lb_nonbasic_vars = lb_nonbasic_vars[:-1]
 
-        while (len(basic_vars) < self.A.shape[0]) and (len(lb_nonbasic_vars) > 0):
-            basic_vars = np.append(basic_vars, lb_nonbasic_vars[-1])
-            lb_nonbasic_vars = lb_nonbasic_vars[:-1]
-
-        res = BoundedVariablePrimalSimplexSolver(
-            c=self.c,
-            A=self.A,
-            b=self.b,
-            lb=self.lb,
-            ub=self.ub,
-            basis=basic_vars,
-            lb_nonbasic_vars=lb_nonbasic_vars,
-            ub_nonbasic_vars=ub_nonbasic_vars,
-        ).solve(maxiters=maxiters2)
+        # res = BoundedVariablePrimalSimplexSolver(
+        #     c=self.c,
+        #     A=self.A,
+        #     b=self.b,
+        #     lb=self.lb,
+        #     ub=self.ub,
+        #     basis=basic_vars,
+        #     lb_nonbasic_vars=lb_nonbasic_vars,
+        #     ub_nonbasic_vars=ub_nonbasic_vars,
+        # ).solve(maxiters=maxiters2)
         res.x = res.x[: self.num_vars - self.num_slack_vars]  # remove slack vars
         res.basis = None  # basis is uninterpretable without slack vars
         return res
+
+
+if __name__ == "__main__":
+    c = np.array([-4, 1, 0, 0, 0])
+    A = np.array([[7, -2], [0, 1], [2, -2]])
+    A = np.hstack([A, np.eye(A.shape[0])])
+    b = np.array([14, 3, 3])
+    lb = np.array([1, 1, 0, 0, 0])
+    ub = np.repeat(np.inf, A.shape[1])
+    
+    c, A, b = ProblemPreprocessingUtils.add_variables_bounds_to_coefficient_matrix(c, A, b, lb, ub)
+    res = SimplexSolver(c=c, A=A, b=b).solve()
+    print(res)
