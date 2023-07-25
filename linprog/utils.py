@@ -95,31 +95,36 @@ class ProblemPreprocessingUtils:
         # add lb/ub surplus/slack vars to A
         lb_surplus_index = ~np.isclose(lb, 0.0)
         ub_slack_index = ~np.isclose(ub, np.inf)
-        if lb_surplus_index.any() or ub_slack_index.any():
-            offset = A.shape[1]
-            zeros = np.zeros(
-                (
-                    A.shape[0],
-                    offset * (int(lb_surplus_index.any()) + int(ub_slack_index.any())),
-                )
-            )
-            A = np.hstack([A, zeros])
-            for i, bnd in enumerate(lb_surplus_index):
-                if not bnd:
-                    continue
-                # add constraint of form `x_i - s_i = lb_i` to A
-                A = np.vstack([A, np.zeros((1, A.shape[1]))])
-                A[-1, i] += 1
-                A[-1, offset + i] -= 1
-            for i, bnd in enumerate(ub_slack_index):
-                if not bnd:
-                    continue
-                # add constraint of form `x_i + s_i = ub_i` to A
-                A = np.vstack([A, np.zeros((1, A.shape[1]))])
-                A[-1, i] += 1
-                A[-1, 2 * offset + i] += 1
+        for i, bnd in enumerate(lb_surplus_index):
+            if not bnd:
+                continue
+            # add constraint of form `x_i - s_i = lb_i` to A
+            A = np.vstack([A, np.zeros((1, A.shape[1]))])
+            A = np.hstack([A, np.zeros((A.shape[0], 1))])
+            A[-1, i] += 1
+            A[-1, -1] -= 1
+        for i, bnd in enumerate(ub_slack_index):
+            if not bnd:
+                continue
+            # add constraint of form `x_i + s_i = ub_i` to A
+            A = np.vstack([A, np.zeros((1, A.shape[1]))])
+            A = np.hstack([A, np.zeros((A.shape[0], 1))])
+            A[-1, i] += 1
+            A[-1, -1] += 1
         # vars are now all 0 <= x < inf
         # absorb lower/upper bounds into `b`
         b = np.concatenate([b, lb[lb_surplus_index], ub[ub_slack_index]])
         c = np.concatenate([c, np.zeros(lb_surplus_index.sum() + ub_slack_index.sum())])
         return ProblemPreprocessingUtils.preprocess_problem(c, A, b)
+
+
+if __name__ == "__main__":
+    c = np.array([-4, 1, 0, 0, 0])
+    A = np.array([[7, -2], [0, 1], [2, -2]])
+    A = np.hstack([A, np.eye(A.shape[0])])
+    b = np.array([14, 3, 3])
+    lb = np.array([1, 1, 0, 0, 0])
+    ub = np.repeat(np.inf, A.shape[1])
+    ProblemPreprocessingUtils.add_variables_bounds_to_coefficient_matrix(
+        c, A, b, lb, ub
+    )
